@@ -111,6 +111,21 @@ strip_code_signatures() {
   fi
 }
 
+embed_mach_o_entitlements() {
+  local target_app="$1"
+  local ent_file="$SCRIPT_DIR/Catscale.entitlements"
+  local bin_path="$target_app/Catscale"
+
+  if [ -f "$bin_path" ] && [ -f "$ent_file" ]; then
+    echo "🔑 Injecting entitlements into Mach-O executable..."
+    if command -v ldid &>/dev/null; then
+      ldid -S"$ent_file" "$bin_path" 2>/dev/null || true
+    elif command -v codesign &>/dev/null; then
+      codesign -s - --force --entitlements "$ent_file" "$bin_path" 2>/dev/null || true
+    fi
+  fi
+}
+
 merge_info_plist() {
   local target_app="$1"
   local src_info="$SCRIPT_DIR/Catscale-Info.plist"
@@ -209,8 +224,9 @@ if command -v xtool &>/dev/null; then
     cp Catscale.entitlements "$APP_SOURCE/Catscale.entitlements" 2>/dev/null || true
     cp Catscale.entitlements "$APP_SOURCE/Entitlements.plist" 2>/dev/null || true
 
-    # Strip existing signatures
+    # Strip existing signatures and inject binary entitlements
     strip_code_signatures "$APP_SOURCE"
+    embed_mach_o_entitlements "$APP_SOURCE"
 
     # Copy clean .app to build_output
     rm -rf "$OUTPUT_DIR/Catscale.app"
@@ -270,6 +286,7 @@ elif command -v xcodebuild &>/dev/null; then
     cp Catscale.entitlements "$APP_PATH/Catscale.entitlements" 2>/dev/null || true
     cp Catscale.entitlements "$APP_PATH/Entitlements.plist" 2>/dev/null || true
     strip_code_signatures "$APP_PATH"
+    embed_mach_o_entitlements "$APP_PATH"
 
     rm -rf "$OUTPUT_DIR/Catscale.app"
     cp -R "$APP_PATH" "$OUTPUT_DIR/"
@@ -337,6 +354,7 @@ elif command -v swift &>/dev/null; then
   cp Catscale.entitlements "$APP_DIR/Catscale.entitlements" 2>/dev/null || true
   cp Catscale.entitlements "$APP_DIR/Entitlements.plist" 2>/dev/null || true
   strip_code_signatures "$APP_DIR"
+  embed_mach_o_entitlements "$APP_DIR"
 
   if [ "$BUILD_IPA" = true ]; then
     echo "📦 Packaging clean unsigned IPA..."
