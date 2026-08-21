@@ -43,8 +43,8 @@ jobs:
           defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
           defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install Tools (XcodeGen & ldid)
+        run: brew install xcodegen ldid
 
       - name: Build & Package via build.sh
         run: |
