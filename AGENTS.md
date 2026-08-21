@@ -1,6 +1,6 @@
 # AGENTS.md — Catscale Repository Context & Guidelines
 
-> **Catscale** is a high-performance, native iOS 18+ / macOS 15+ super-resolution neural upscaler built with Swift 6 and Apple Core ML.
+> **Catscale** is a high-performance, native iOS 18+ / iPadOS 18+ super-resolution neural upscaler built with Swift 6 and Apple Core ML.
 
 ---
 

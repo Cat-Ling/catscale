@@ -50,7 +50,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "🐱 ========================================================"
-echo "   Building Catscale (iOS 18+ / macOS 15+)"
+echo "   Building Catscale (iOS 18+ / iPadOS 18+)"
 echo "============================================================"
 
 # Handle clean
