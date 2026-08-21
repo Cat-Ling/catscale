@@ -152,7 +152,7 @@ elif command -v swift &>/dev/null; then
     IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
     if [ -n "$IOS_SDK" ] && [ -d "$IOS_SDK" ]; then
       echo "📱 Detected iOS SDK: $IOS_SDK"
-      SWIFT_FLAGS+=("-Xswiftc" "-sdk" "-Xswiftc" "$IOS_SDK" "-Xswiftc" "-target" "-Xswiftc" "arm64-apple-ios26.0")
+      SWIFT_FLAGS=("--sdk" "$IOS_SDK" "-c" "release" "--triple" "arm64-apple-ios26.0")
     fi
   fi
 
