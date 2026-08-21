@@ -15,7 +15,7 @@ dist/
 Payload/
 payload/
 
-# Large Model Files & Cache (Fetched dynamically via build.sh / CI)
+# Large Model Files & Cache
 .model_cache/
 ModelsDownload/
 *.mlpackage
