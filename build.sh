@@ -105,8 +105,11 @@ if command -v xtool &>/dev/null; then
   fi
 
   if [ -d "xtool/Catscale.app" ]; then
+    cp Catscale.entitlements "xtool/Catscale.app/archived-expanded-entitlements.xcent" 2>/dev/null || true
+    cp Catscale.entitlements "xtool/Catscale.app/Catscale.entitlements" 2>/dev/null || true
     cp -R "xtool/Catscale.app" "$OUTPUT_DIR/"
   fi
+  cp Catscale.entitlements "$OUTPUT_DIR/" 2>/dev/null || true
 
 elif command -v swift &>/dev/null; then
   echo "🔧 Building via SwiftPM..."
