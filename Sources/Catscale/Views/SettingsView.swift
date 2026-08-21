@@ -125,6 +125,18 @@ public struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.appVersion)
                     LabeledContent("License", value: "MIT")
+
+                    if let githubURL = URL(string: "https://github.com/Cat-Ling/catscale") {
+                        Link(destination: githubURL) {
+                            HStack {
+                                Text("GitHub Repository")
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Settings")
