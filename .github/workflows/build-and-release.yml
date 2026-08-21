@@ -126,18 +126,6 @@ jobs:
           sudo xcodebuild -license accept
           xcodebuild -version
 
-      - name: Install xtool
-        run: |
-          set -euo pipefail
-          echo "🔧 Installing xtool..."
-          curl -sL https://raw.githubusercontent.com/xtool-org/xtool/main/install.sh | bash || true
-          if ! command -v xtool &>/dev/null; then
-            export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "$HOME/bin" >> "$GITHUB_PATH"
-          fi
-          xtool --version || echo "xtool install finished"
-
       - name: Build & Package via build.sh
         env:
           TAG: ${{ needs.check-and-prepare.outputs.tag }}

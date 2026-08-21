@@ -145,16 +145,46 @@ if command -v xtool &>/dev/null; then
   cp Catscale.entitlements "$OUTPUT_DIR/" 2>/dev/null || true
 
 elif command -v swift &>/dev/null; then
-  echo "🔧 Building via SwiftPM..."
-  swift build -c release --triple arm64-apple-ios18.0
+  echo "🔧 Building via SwiftPM & Apple Toolchain..."
+
+  SWIFT_FLAGS=("-c" "release" "--triple" "arm64-apple-ios18.0")
+  if command -v xcrun &>/dev/null; then
+    IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
+    if [ -n "$IOS_SDK" ] && [ -d "$IOS_SDK" ]; then
+      echo "📱 Detected iOS SDK: $IOS_SDK"
+      SWIFT_FLAGS+=("-Xswiftc" "-sdk" "-Xswiftc" "$IOS_SDK" "-Xswiftc" "-target" "-Xswiftc" "arm64-apple-ios18.0")
+    fi
+  fi
+
+  swift build "${SWIFT_FLAGS[@]}"
 
   APP_DIR="$OUTPUT_DIR/Catscale.app"
+  rm -rf "$APP_DIR"
   mkdir -p "$APP_DIR"
 
-  BIN_PATH=$(swift build -c release --triple arm64-apple-ios18.0 --show-bin-path)
+  BIN_PATH=$(swift build "${SWIFT_FLAGS[@]}" --show-bin-path)
   if [ -f "$BIN_PATH/Catscale" ]; then
     cp "$BIN_PATH/Catscale" "$APP_DIR/"
+  fi
+  if [ -f "Catscale-Info.plist" ]; then
     cp Catscale-Info.plist "$APP_DIR/Info.plist"
+  fi
+
+  # Copy resource bundles and compiled models
+  if [ -d "$BIN_PATH/Catscale_Catscale.bundle" ]; then
+    cp -R "$BIN_PATH/Catscale_Catscale.bundle" "$APP_DIR/"
+  fi
+  if [ -d "Sources/Catscale/Resources" ]; then
+    cp -R Sources/Catscale/Resources/* "$APP_DIR/" 2>/dev/null || true
+  fi
+
+  # Compile any .mlmodel to .mlmodelc if xcrun coremlc is available
+  if command -v xcrun &>/dev/null; then
+    for m in "$APP_DIR"/*.mlmodel; do
+      if [ -f "$m" ]; then
+        xcrun coremlc compile "$m" "$APP_DIR" 2>/dev/null || true
+      fi
+    done
   fi
 
   # Inject entitlements and strip signatures
@@ -163,7 +193,7 @@ elif command -v swift &>/dev/null; then
   strip_code_signatures "$APP_DIR"
 
   if [ "$BUILD_IPA" = true ]; then
-    echo "📦 Packaging unsigned IPA..."
+    echo "📦 Packaging clean unsigned IPA..."
     mkdir -p "$OUTPUT_DIR/Payload"
     cp -R "$APP_DIR" "$OUTPUT_DIR/Payload/"
     cd "$OUTPUT_DIR"
