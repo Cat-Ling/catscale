@@ -116,13 +116,21 @@ embed_mach_o_entitlements() {
   local ent_file="$SCRIPT_DIR/Catscale.entitlements"
   local bin_path="$target_app/Catscale"
 
+  if [ ! -f "$bin_path" ]; then
+    bin_path=$(find "$target_app" -maxdepth 1 -type f -perm +111 2>/dev/null | head -n 1 || true)
+  fi
+
   if [ -f "$bin_path" ] && [ -f "$ent_file" ]; then
-    echo "🔑 Injecting entitlements into Mach-O executable..."
+    echo "🔑 Injecting entitlements into Mach-O executable: $bin_path"
     if command -v ldid &>/dev/null; then
-      ldid -S"$ent_file" "$bin_path" 2>/dev/null || true
+      echo "Running: ldid -S$ent_file $bin_path"
+      ldid -S"$ent_file" "$bin_path" || true
     elif command -v codesign &>/dev/null; then
-      codesign -s - --force --entitlements "$ent_file" "$bin_path" 2>/dev/null || true
+      echo "Running: codesign -s - --force --entitlements $ent_file $bin_path"
+      codesign -s - --force --entitlements "$ent_file" "$bin_path" || true
     fi
+  else
+    echo "⚠️ Mach-O executable or entitlements file not found: bin=$bin_path ent=$ent_file"
   fi
 }
 
