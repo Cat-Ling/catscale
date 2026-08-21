@@ -1,13 +1,10 @@
 name: Build & Release Catscale iOS IPA
 
 on:
-  schedule:
-    - cron: '0 */12 * * *'
   push:
     tags:
       - 'v*'
     branches:
-      - master
       - main
   workflow_dispatch:
     inputs:
@@ -55,14 +52,22 @@ jobs:
           SHORT_SHA=$(git rev-parse --short HEAD)
           EXACT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
 
+          # Extract version from Catscale-Info.plist if available
+          APP_VERSION="0.0.2"
+          if [ -f "Catscale-Info.plist" ]; then
+            PARSED_VER=$(grep -A1 "CFBundleShortVersionString" Catscale-Info.plist | grep -o '<string>.*</string>' | sed -e 's/<string>//' -e 's/<\/string>//' || true)
+            if [ -n "$PARSED_VER" ]; then
+              APP_VERSION="$PARSED_VER"
+            fi
+          fi
+
           PRERELEASE="$IS_PRERELEASE"
 
           if [ -n "$EXACT_TAG" ]; then
             TAG_NAME="$EXACT_TAG"
             echo "Exact tag found: $TAG_NAME"
           else
-            DATE=$(date +'%Y%m%d')
-            TAG_NAME="v1.0.0-${SHORT_SHA}"
+            TAG_NAME="v${APP_VERSION}-${SHORT_SHA}"
             PRERELEASE="true"
             echo "Building commit: $SHORT_SHA (tag: $TAG_NAME)"
           fi
@@ -94,11 +99,11 @@ jobs:
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
   build-ipa:
-    name: Fetch Models & Build Unsigned IPA
+    name: Build Unsigned IPA via Darwin Toolchain
     needs: check-and-prepare
     if: needs.check-and-prepare.outputs.should_build == 'true'
     runs-on: macos-14
-    timeout-minutes: 90
+    timeout-minutes: 60
     env:
       NSUnbufferedIO: "YES"
       GIT_TERMINAL_PROMPT: "0"
@@ -121,37 +126,6 @@ jobs:
           sudo xcodebuild -license accept
           xcodebuild -version
 
-      - name: Fetch Remote Super-Resolution Models
-        run: |
-          set -euo pipefail
-          echo "⬇️ Fetching AI Super-Resolution Models from Hugging Face & GitHub..."
-
-          MODELS_DOWNLOAD="ModelsDownload"
-          RESOURCES_DIR="Sources/Catscale/Resources"
-          mkdir -p "$MODELS_DOWNLOAD" "$RESOURCES_DIR"
-
-          # 1. Real-ESRGAN CoreML models from HuggingFace
-          echo "Fetching Real-ESRGAN Anime 6B CoreML..."
-          curl -sL --retry 3 -o "$MODELS_DOWNLOAD/RealESRGAN_x4plus_anime_6B.mlpackage.zip" \
-            "https://huggingface.co/VincentGOURBIN/RealESRGAN-CoreML/resolve/main/RealESRGAN_x4plus_anime_6B.mlpackage.zip" || true
-
-          if [ -f "$MODELS_DOWNLOAD/RealESRGAN_x4plus_anime_6B.mlpackage.zip" ]; then
-            unzip -q "$MODELS_DOWNLOAD/RealESRGAN_x4plus_anime_6B.mlpackage.zip" -d "$MODELS_DOWNLOAD"
-            xcrun coremlc compile "$MODELS_DOWNLOAD/RealESRGAN_x4plus_anime_6B.mlpackage" "$RESOURCES_DIR" || true
-          fi
-
-          # 2. Existing bundled CoreML models in Resources
-          if [ -d "Sources/Catscale/Resources" ]; then
-            echo "Compiling bundled CoreML models in Resources..."
-            for m in Sources/Catscale/Resources/*.mlmodel; do
-              [ -f "$m" ] || continue
-              xcrun coremlc compile "$m" "$RESOURCES_DIR" || true
-            done
-          fi
-
-          echo "📦 Models compiled in Resources:"
-          ls -lh "$RESOURCES_DIR" || true
-
       - name: Install xtool
         run: |
           set -euo pipefail
@@ -164,66 +138,21 @@ jobs:
           fi
           xtool --version || echo "xtool install finished"
 
-      - name: Build Unsigned App Bundle
-        run: |
-          set -euo pipefail
-          echo "🚀 Building Catscale for iOS..."
-
-          if command -v xtool &>/dev/null; then
-            xtool dev build
-            APP_PATH="xtool/Catscale.app"
-          else
-            echo "Building via swift package / xcodebuild..."
-            swift build -c release --triple arm64-apple-ios18.0
-            mkdir -p xtool/Catscale.app
-            APP_PATH="xtool/Catscale.app"
-          fi
-
-      - name: Package Unsigned IPA
+      - name: Build & Package via build.sh
         env:
           TAG: ${{ needs.check-and-prepare.outputs.tag }}
         run: |
           set -euo pipefail
+          chmod +x ./build.sh
+          ./build.sh --clean
 
-          IPA_NAME="Catscale-${TAG}-unsigned.ipa"
-          echo "📦 Packaging Unsigned IPA: ${IPA_NAME}..."
-
-          APP_PATH=$(find . -name "Catscale.app" -type d | head -n 1)
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "Searching system for .app..."
-            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Catscale.app" -type d 2>/dev/null | head -n 1 || true)
+          IPA_RELEASE_NAME="Catscale-${TAG}-unsigned.ipa"
+          if [ -f "build_output/Catscale-unsigned.ipa" ]; then
+            cp "build_output/Catscale-unsigned.ipa" "${IPA_RELEASE_NAME}"
           fi
 
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "❌ Failed to locate Catscale.app"
-            exit 1
-          fi
-
-          echo "Found .app at: $APP_PATH"
-
-          # Inject compiled models into App bundle if not already present
-          if [ -d "Sources/Catscale/Resources" ]; then
-            cp -R Sources/Catscale/Resources/* "${APP_PATH}/" 2>/dev/null || true
-          fi
-
-          # Strip code signatures for clean unsigned sideloading
-          codesign --remove-signature "${APP_PATH}" 2>/dev/null || true
-          find "${APP_PATH}" \( -name "*.dylib" -o -name "*.framework" \) -print0 | \
-            while IFS= read -r -d '' f; do
-              codesign --remove-signature "$f" 2>/dev/null || true
-            done
-
-          # Package into IPA
-          PAYLOAD_DIR="payload/Payload"
-          mkdir -p "${PAYLOAD_DIR}"
-          cp -R "${APP_PATH}" "${PAYLOAD_DIR}/"
-
-          cd payload
-          zip -q -r -y "../${IPA_NAME}" Payload
-          cd ..
-
-          ls -lh "${IPA_NAME}"
-          echo "🎉 Successfully built: ${IPA_NAME}"
+          ls -lh "${IPA_RELEASE_NAME}"
+          echo "🎉 Successfully built: ${IPA_RELEASE_NAME}"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
@@ -293,3 +222,4 @@ jobs:
             --notes-file release_notes.md \
             "${EXTRA_FLAGS[@]}" \
             Catscale-*.ipa
+
