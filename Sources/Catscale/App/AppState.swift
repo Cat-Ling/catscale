@@ -67,7 +67,14 @@ public final class AppState {
     // MARK: - Single Image State
     public var inputImage: UIImage?
     public var upscaledImage: UIImage?
-    public var selectedModel: ModelSpec = ModelRegistry.waifu2xAnimeNoise1
+    public var selectedModel: ModelSpec {
+        didSet {
+            UserDefaults.standard.set(selectedModel.group.rawValue, forKey: "selectedModelGroup")
+            UserDefaults.standard.set(selectedModel.variantName, forKey: "selectedModelVariant")
+            UserDefaults.standard.set(selectedModel.noiseLevel, forKey: "selectedModelNoise")
+            UserDefaults.standard.set(selectedModel.id, forKey: "selectedModelId")
+        }
+    }
     public var isProcessing: Bool = false
     public var progressFraction: Double = 0.0
     public var statusText: String = "Ready"
@@ -110,6 +117,18 @@ public final class AppState {
     private var processingTask: Task<Void, Never>?
 
     public init() {
+        if let savedGroupRaw = UserDefaults.standard.string(forKey: "selectedModelGroup"),
+           let group = ModelGroup(rawValue: savedGroupRaw) {
+            let variant = UserDefaults.standard.string(forKey: "selectedModelVariant")
+            let noise = UserDefaults.standard.object(forKey: "selectedModelNoise") as? Int ?? 0
+            self.selectedModel = ModelRegistry.resolve(group: group, variantName: variant, noiseLevel: noise)
+        } else if let savedId = UserDefaults.standard.string(forKey: "selectedModelId"),
+                  let model = ModelRegistry.allModels.first(where: { $0.id == savedId }) {
+            self.selectedModel = model
+        } else {
+            self.selectedModel = ModelRegistry.waifu2xAnimeNoise1
+        }
+
         let computeUnits: MLComputeUnits
         if let savedObject = UserDefaults.standard.object(forKey: "computeUnitsSelection") as? Int,
            let decodedUnits = MLComputeUnits(rawValue: savedObject) {

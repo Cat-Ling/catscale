@@ -57,6 +57,15 @@ public struct ModelSelectionView: View {
                         if !newGroup.availableVariantNames.contains(selectedVariantName) {
                             selectedVariantName = newGroup.availableVariantNames.first ?? ""
                         }
+                        if newGroup == .waifu2xPhoto {
+                            if selectedNoiseLevel < 1 || selectedNoiseLevel > 2 {
+                                selectedNoiseLevel = 1
+                            }
+                        } else if newGroup == .realCUGANAnime && (selectedVariantName.contains("3x") || selectedVariantName.contains("4x")) {
+                            if selectedNoiseLevel != 0 && selectedNoiseLevel != 3 {
+                                selectedNoiseLevel = 0
+                            }
+                        }
                         syncSelectedModel()
                     }
 
@@ -66,7 +75,12 @@ public struct ModelSelectionView: View {
                             Text(variant).tag(variant)
                         }
                     }
-                    .onChange(of: selectedVariantName) { _, _ in
+                    .onChange(of: selectedVariantName) { _, newVariant in
+                        if selectedGroup == .realCUGANAnime && (newVariant.contains("3x") || newVariant.contains("4x")) {
+                            if selectedNoiseLevel != 0 && selectedNoiseLevel != 3 {
+                                selectedNoiseLevel = 0
+                            }
+                        }
                         syncSelectedModel()
                     }
 
@@ -92,14 +106,24 @@ public struct ModelSelectionView: View {
 
                     // Real-CUGAN Quality & SyncGap
                     if selectedGroup == .realCUGANAnime {
-                        Picker("Denoising Level", selection: $selectedNoiseLevel) {
-                            Text("No Denoise (0)").tag(0)
-                            Text("Low (1)").tag(1)
-                            Text("Medium (2)").tag(2)
-                            Text("High (3)").tag(3)
-                        }
-                        .onChange(of: selectedNoiseLevel) { _, _ in
-                            syncSelectedModel()
+                        if selectedVariantName.contains("3x") || selectedVariantName.contains("4x") {
+                            Picker("Denoising Level", selection: $selectedNoiseLevel) {
+                                Text("No Denoise (0)").tag(0)
+                                Text("Denoise (3)").tag(3)
+                            }
+                            .onChange(of: selectedNoiseLevel) { _, _ in
+                                syncSelectedModel()
+                            }
+                        } else {
+                            Picker("Denoising Level", selection: $selectedNoiseLevel) {
+                                Text("No Denoise (0)").tag(0)
+                                Text("Low (1)").tag(1)
+                                Text("Medium (2)").tag(2)
+                                Text("High (3)").tag(3)
+                            }
+                            .onChange(of: selectedNoiseLevel) { _, _ in
+                                syncSelectedModel()
+                            }
                         }
 
                         Picker("SyncGap (Seam Sync)", selection: $state.syncGapMode) {
@@ -109,13 +133,24 @@ public struct ModelSelectionView: View {
                         }
                     }
 
-                    // Waifu2x Noise Reduction
-                    if selectedGroup == .waifu2xAnime || selectedGroup == .waifu2xPhoto {
+                    // Waifu2x Anime Noise Reduction
+                    if selectedGroup == .waifu2xAnime {
                         Picker("Noise Reduction", selection: $selectedNoiseLevel) {
                             Text("None (0)").tag(0)
                             Text("Low (1)").tag(1)
                             Text("Medium (2)").tag(2)
                             Text("High (3)").tag(3)
+                        }
+                        .onChange(of: selectedNoiseLevel) { _, _ in
+                            syncSelectedModel()
+                        }
+                    }
+
+                    // Waifu2x Photo Noise Reduction
+                    if selectedGroup == .waifu2xPhoto {
+                        Picker("Noise Reduction", selection: $selectedNoiseLevel) {
+                            Text("Light (1)").tag(1)
+                            Text("Medium (2)").tag(2)
                         }
                         .onChange(of: selectedNoiseLevel) { _, _ in
                             syncSelectedModel()
@@ -240,6 +275,9 @@ public struct ModelSelectionView: View {
                 Text(downloadAlertMessage ?? "An error occurred.")
             }
             .onAppear {
+                selectedGroup = state.selectedModel.group
+                selectedVariantName = state.selectedModel.variantName
+                selectedNoiseLevel = max(0, state.selectedModel.noiseLevel)
                 downloader.refreshInstalledModels()
             }
         }

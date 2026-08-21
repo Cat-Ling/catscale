@@ -90,7 +90,14 @@ public final class ModelDownloader {
     /// Check if a model is installed
     public func isModelInstalled(_ model: ModelSpec) -> Bool {
         if model.isBundled { return true }
-        return installedModelIds.contains(model.id)
+        if installedModelIds.contains(model.id) { return true }
+        let baseName = model.compiledModelName.lowercased()
+        return installedModelIds.contains(where: { installedId in
+            if let installedSpec = ModelRegistry.allModels.first(where: { $0.id == installedId }) {
+                return installedSpec.compiledModelName.lowercased() == baseName
+            }
+            return false
+        })
     }
 
     /// Cancel an active model download

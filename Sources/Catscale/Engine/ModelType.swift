@@ -173,6 +173,32 @@ public struct ModelSpec: Identifiable, Hashable, Sendable {
         self.downloadSizeMB = downloadSizeMB
         self.uncompressedSizeMB = uncompressedSizeMB
     }
+
+    public func withNoiseLevel(_ level: Int) -> ModelSpec {
+        var newName = self.name
+        if self.family == .srmd && !self.isSRMDNF {
+            newName = "\(self.variantName) (Denoise \(level))"
+        }
+        return ModelSpec(
+            id: self.family == .srmd ? "\(self.compiledModelName.lowercased())_noise\(level)" : self.id,
+            name: newName,
+            variantName: self.variantName,
+            family: self.family,
+            group: self.group,
+            category: self.category,
+            scale: self.scale,
+            noiseLevel: level,
+            isSRMDNF: self.isSRMDNF,
+            description: self.description,
+            compiledModelName: self.compiledModelName,
+            defaultTileSize: self.defaultTileSize,
+            recommendedOverlap: self.recommendedOverlap,
+            isBundled: self.isBundled,
+            downloadURLString: self.downloadURLString,
+            downloadSizeMB: self.downloadSizeMB,
+            uncompressedSizeMB: self.uncompressedSizeMB
+        )
+    }
 }
 
 /// Model registry containing verified CoreML presets
@@ -705,7 +731,7 @@ public enum ModelRegistry {
     ]
 
     /// Resolve model by algorithm, variant name, and noise level
-    public static func resolve(group: ModelGroup, variantName: String? = nil, noiseLevel: Int = 1) -> ModelSpec {
+    public static func resolve(group: ModelGroup, variantName: String? = nil, noiseLevel: Int = 0) -> ModelSpec {
         let groupModels = allModels.filter { $0.group == group }
         if groupModels.isEmpty {
             return waifu2xAnimeNoise1
@@ -719,6 +745,18 @@ public enum ModelRegistry {
             variantModels = groupModels
         }
 
+        // 1. SRMD dynamic PCA denoise parameter (0...10)
+        if group == .srmdPhoto {
+            if let base = variantModels.first {
+                if base.isSRMDNF {
+                    return base
+                } else {
+                    return base.withNoiseLevel(max(0, min(10, noiseLevel)))
+                }
+            }
+        }
+
+        // 2. Models with discrete noise checkpoints (Real-CUGAN, Waifu2x)
         if group.supportsNoiseReduction {
             if let exact = variantModels.first(where: { $0.noiseLevel == noiseLevel }) {
                 return exact
