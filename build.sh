@@ -89,46 +89,85 @@ if [ "$FETCH_MODELS" = true ]; then
   fi
 fi
 
+strip_code_signatures() {
+  local target_app="$1"
+  if [ -d "$target_app" ]; then
+    echo "🧹 Stripping existing code signatures for clean unsigned sideloading..."
+
+    # 1. Native Darwin codesign removal if available
+    if command -v codesign &>/dev/null; then
+      codesign --remove-signature "$target_app" 2>/dev/null || true
+      find "$target_app" \( -name "*.dylib" -o -name "*.framework" \) -print0 2>/dev/null | \
+        while IFS= read -r -d '' f; do
+          codesign --remove-signature "$f" 2>/dev/null || true
+        done
+    fi
+
+    # 2. Recursively delete all _CodeSignature directories
+    find "$target_app" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
+
+    # 3. Remove any embedded provisioning profiles
+    find "$target_app" -name "embedded.mobileprovision" -type f -delete 2>/dev/null || true
+  fi
+}
+
 # Determine build tool
 if command -v xtool &>/dev/null; then
   echo "🔧 Building via xtool (Cross-platform SwiftPM Darwin toolchain)..."
-  
-  if [ "$BUILD_IPA" = true ]; then
-    xtool dev build --ipa
-    
-    # Locate generated IPA
-    if [ -f "xtool/Catscale.ipa" ]; then
-      cp "xtool/Catscale.ipa" "$OUTPUT_DIR/$IPA_NAME"
-    fi
-  else
-    xtool dev build
-  fi
 
-  if [ -d "xtool/Catscale.app" ]; then
-    cp Catscale.entitlements "xtool/Catscale.app/archived-expanded-entitlements.xcent" 2>/dev/null || true
-    cp Catscale.entitlements "xtool/Catscale.app/Catscale.entitlements" 2>/dev/null || true
-    cp -R "xtool/Catscale.app" "$OUTPUT_DIR/"
+  xtool dev build
+
+  APP_SOURCE="xtool/Catscale.app"
+  if [ -d "$APP_SOURCE" ]; then
+    # Inject entitlements for sideloading tools
+    cp Catscale.entitlements "$APP_SOURCE/archived-expanded-entitlements.xcent" 2>/dev/null || true
+    cp Catscale.entitlements "$APP_SOURCE/Catscale.entitlements" 2>/dev/null || true
+
+    # Strip existing signatures
+    strip_code_signatures "$APP_SOURCE"
+
+    # Copy clean .app to build_output
+    rm -rf "$OUTPUT_DIR/Catscale.app"
+    cp -R "$APP_SOURCE" "$OUTPUT_DIR/"
+
+    # Package clean unsigned IPA
+    if [ "$BUILD_IPA" = true ]; then
+      echo "📦 Packaging clean unsigned IPA..."
+      mkdir -p "$OUTPUT_DIR/Payload"
+      cp -R "$APP_SOURCE" "$OUTPUT_DIR/Payload/"
+      cd "$OUTPUT_DIR"
+      rm -f "$IPA_NAME"
+      zip -q -r -y "$IPA_NAME" Payload
+      rm -rf Payload
+      cd "$SCRIPT_DIR"
+    fi
   fi
   cp Catscale.entitlements "$OUTPUT_DIR/" 2>/dev/null || true
 
 elif command -v swift &>/dev/null; then
   echo "🔧 Building via SwiftPM..."
   swift build -c release --triple arm64-apple-ios18.0
-  
+
   APP_DIR="$OUTPUT_DIR/Catscale.app"
   mkdir -p "$APP_DIR"
-  
+
   BIN_PATH=$(swift build -c release --triple arm64-apple-ios18.0 --show-bin-path)
   if [ -f "$BIN_PATH/Catscale" ]; then
     cp "$BIN_PATH/Catscale" "$APP_DIR/"
     cp Catscale-Info.plist "$APP_DIR/Info.plist"
   fi
-  
+
+  # Inject entitlements and strip signatures
+  cp Catscale.entitlements "$APP_DIR/archived-expanded-entitlements.xcent" 2>/dev/null || true
+  cp Catscale.entitlements "$APP_DIR/Catscale.entitlements" 2>/dev/null || true
+  strip_code_signatures "$APP_DIR"
+
   if [ "$BUILD_IPA" = true ]; then
     echo "📦 Packaging unsigned IPA..."
     mkdir -p "$OUTPUT_DIR/Payload"
     cp -R "$APP_DIR" "$OUTPUT_DIR/Payload/"
     cd "$OUTPUT_DIR"
+    rm -f "$IPA_NAME"
     zip -q -r -y "$IPA_NAME" Payload
     rm -rf Payload
     cd "$SCRIPT_DIR"
