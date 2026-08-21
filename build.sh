@@ -154,6 +154,7 @@ try:
                     v = v.replace(var, val)
             dest[k] = v
 
+    # Hard-enforce exact values
     dest['CFBundleName'] = 'Catscale'
     dest['CFBundleDisplayName'] = 'Catscale'
     dest['CFBundleExecutable'] = 'Catscale'
@@ -164,8 +165,23 @@ try:
     dest['CFBundleDevelopmentRegion'] = 'en'
     dest['LSRequiresIPhoneOS'] = True
     dest['UIDeviceFamily'] = [1, 2]
-    if 'UILaunchScreen' not in dest:
-        dest['UILaunchScreen'] = {}
+    dest['NSPhotoLibraryUsageDescription'] = 'Catscale requires access to your photo library to select and upscale images.'
+    dest['NSPhotoLibraryAddUsageDescription'] = 'Catscale requires permission to save upscaled high-resolution photos to your library.'
+    dest['UIFileSharingEnabled'] = True
+    dest['LSSupportsOpeningDocumentsInPlace'] = True
+    dest['UIApplicationSceneManifest'] = {'UIApplicationSupportsMultipleScenes': True}
+    dest['UILaunchScreen'] = {}
+    dest['UISupportedInterfaceOrientations'] = [
+        'UIInterfaceOrientationPortrait',
+        'UIInterfaceOrientationLandscapeLeft',
+        'UIInterfaceOrientationLandscapeRight',
+    ]
+    dest['UISupportedInterfaceOrientations~ipad'] = [
+        'UIInterfaceOrientationPortrait',
+        'UIInterfaceOrientationPortraitUpsideDown',
+        'UIInterfaceOrientationLandscapeLeft',
+        'UIInterfaceOrientationLandscapeRight',
+    ]
 
     with open(dest_path, 'wb') as f:
         plistlib.dump(dest, f)

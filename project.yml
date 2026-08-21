@@ -15,6 +15,32 @@ targets:
       - path: Sources/Catscale
     info:
       path: Catscale-Info.plist
+      properties:
+        CFBundleDisplayName: Catscale
+        CFBundleName: Catscale
+        CFBundleExecutable: Catscale
+        CFBundleIdentifier: com.catscale.app
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: "0.0.2"
+        CFBundleVersion: "2"
+        CFBundleDevelopmentRegion: en
+        LSRequiresIPhoneOS: true
+        NSPhotoLibraryUsageDescription: "Catscale requires access to your photo library to select and upscale images."
+        NSPhotoLibraryAddUsageDescription: "Catscale requires permission to save upscaled high-resolution photos to your library."
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     entitlements:
       path: Catscale.entitlements
     settings:
