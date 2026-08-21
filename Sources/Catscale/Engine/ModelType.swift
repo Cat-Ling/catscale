@@ -505,7 +505,7 @@ public enum ModelRegistry {
         compiledModelName: "RealESRGAN-UltraSharp",
         defaultTileSize: 256,
         recommendedOverlap: 16,
-        downloadURLString: "https://huggingface.co/VincentGOURBIN/RealESRGAN-CoreML/resolve/main/RealESRGAN-UltraSharp.mlpackage.zip",
+        downloadURLString: "https://github.com/Cat-Ling/CatML/releases/download/0.1/RealESRGAN-UltraSharp.mlpackage.zip",
         downloadSizeMB: 29.5,
         uncompressedSizeMB: 32.5
     )
@@ -540,7 +540,7 @@ public enum ModelRegistry {
         compiledModelName: "ESRGAN-MangaJPEGLQ",
         defaultTileSize: 256,
         recommendedOverlap: 16,
-        downloadURLString: "https://huggingface.co/VincentGOURBIN/RealESRGAN-CoreML/resolve/main/ESRGAN-MangaJPEGLQ.mlpackage.zip",
+        downloadURLString: "https://github.com/Cat-Ling/CatML/releases/download/0.1/ESRGAN-MangaJPEGLQ.mlpackage.zip",
         downloadSizeMB: 8.9,
         uncompressedSizeMB: 9.8
     )
@@ -558,7 +558,7 @@ public enum ModelRegistry {
         compiledModelName: "RealESRGAN-x4plus",
         defaultTileSize: 256,
         recommendedOverlap: 16,
-        downloadURLString: "https://huggingface.co/VincentGOURBIN/RealESRGAN-CoreML/resolve/main/RealESRGAN-x4plus.mlpackage.zip",
+        downloadURLString: "https://github.com/Cat-Ling/CatML/releases/download/0.1/RealESRGAN-x4plus.mlpackage.zip",
         downloadSizeMB: 29.6,
         uncompressedSizeMB: 32.5
     )
