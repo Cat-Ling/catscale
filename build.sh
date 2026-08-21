@@ -121,12 +121,12 @@ embed_mach_o_entitlements() {
   fi
 
   if [ -f "$bin_path" ] && [ -f "$ent_file" ]; then
-    echo "🔑 Injecting entitlements into Mach-O executable: $bin_path"
+    echo "🔑 Injecting entitlements into app executable..."
     if command -v codesign &>/dev/null; then
-      codesign --remove-signature "$bin_path" 2>/dev/null || true
+      echo "Running: codesign -s - --force --entitlements $ent_file $target_app"
+      codesign -s - --force --entitlements "$ent_file" "$target_app" || true
     fi
     if command -v ldid &>/dev/null; then
-      ldid -s "$bin_path" 2>/dev/null || true
       echo "Running: ldid -S$ent_file $bin_path"
       ldid -S"$ent_file" "$bin_path" || true
     fi
