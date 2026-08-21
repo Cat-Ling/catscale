@@ -257,20 +257,24 @@ jobs:
           RELEASE_TITLE="Catscale ${TAG}"
 
           cat > release_notes.md << EOF
-          ## Catscale — High-Performance AI Image Upscaler for iOS
+          ## Catscale — High-Performance AI Image Super-Resolution for iOS
 
-          ### 🌟 Supported AI Model Architectures
-          * **Real-ESRGAN**: Anime 6B (Ultra-sharp), x4 Plus (Universal), RealESRGANv3
-          * **Real-CUGAN**: SE 2x/3x/4x, Pro 2x (U-Net Anime Enhancer)
-          * **Waifu2x**: Anime & Photo Denoise 0-3 (CUNet & UpConv7)
-          * **SRMD**: Degradation-Aware 2x/4x Super-Resolution
-          * **RealSR**: DF2K Real-World Photography Super-Resolution
+          ### 🌟 Supported AI Algorithms (27 Models)
+          * **Real-CUGAN**: High-fidelity UpCunet (2x, 3x, 4x) with Denoising & SyncGap seam synchronization
+          * **Real-ESRGAN**: Real-ESRGAN UltraSharp (4x) & Anime 6B (4x)
+          * **Waifu2x**: Bundled offline Anime & Photo models (2x, Noise 0-3)
+          * **ESRGAN Manga Clean**: 1x JPEG artifact restoration & line cleaner
+          * **SRMD & SRMDNF**: Degradation-aware super-resolution (2x, 3x, 4x) with 0-10 Denoise levels
+          * **BSRGAN**: Blind super-resolution (2x, 4x) for degraded & vintage photography
+          * **Real-ESRNet**: Natural photo super-resolution (4x)
+          * **Real-ESRGAN (Universal)**: 4x super-resolution for textures, CGI, and photos
 
           ### ✨ Key Features
           * **100% On-Device & Private**: Zero tracking, zero telemetry, no network calls during upscaling.
           * **Intelligent Overlap Tiling**: Upscales massive multi-megapixel images without iOS memory (OOM) crashes.
           * **Modern iOS 18 SwiftUI**: Interactive before/after split comparison slider, batch upscaling queue, and Photos integration.
-          * **Apple Neural Engine (ANE) + Metal**: Full Core ML hardware acceleration.
+          * **Apple Neural Engine (ANE) + Metal GPU**: Cascading Core ML hardware acceleration.
+          * **Offline Model Manager**: Download-all batching, segmented model filtering, and individual swipe-to-delete.
 
           ---
           *Built from commit [\`${SHORT_SHA}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${COMMIT_SHA}).*

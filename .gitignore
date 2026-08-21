@@ -14,10 +14,13 @@ dist/
 *.ipa
 Payload/
 payload/
+build_output/
 
-# Large Model Files & Cache
+# Large Model Files, Python & Tooling
 .model_cache/
 ModelsDownload/
+CatML/
+to-be-uploaded/
 *.mlpackage
 *.mlmodel
 *.mlmodelc
@@ -26,6 +29,17 @@ ModelsDownload/
 *.onnx
 *.pth
 *.zip
-build_output/
-CatML/
-to-be-uploaded/
+*.log
+
+# Explicitly track bundled offline models
+!Sources/Catscale/Resources/
+!Sources/Catscale/Resources/*.mlmodel
+
+# Python & IDE artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.vscode/
+.idea/
+*.swp
+*~
