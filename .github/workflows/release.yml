@@ -1,9 +1,6 @@
 name: Publish Release
 
 on:
-  push:
-    tags:
-      - "v*"
   release:
     types: [published]
 
@@ -51,10 +48,10 @@ jobs:
       - name: Publish to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF_NAME}"
           echo "🚀 Processing Release for Tag: ${TAG_NAME}"
 
           IPA_SOURCE="build_output/Catscale-unsigned.ipa"
