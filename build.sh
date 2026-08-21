@@ -144,6 +144,61 @@ if command -v xtool &>/dev/null; then
   fi
   cp Catscale.entitlements "$OUTPUT_DIR/" 2>/dev/null || true
 
+elif command -v xcodebuild &>/dev/null; then
+  echo "🔧 Building via Apple Xcode & XcodeGen..."
+
+  if command -v xcodegen &>/dev/null; then
+    echo "⚙️ Generating Xcode project via XcodeGen..."
+    xcodegen generate
+  fi
+
+  if [ -f "Catscale.xcodeproj/project.pbxproj" ]; then
+    echo "🚀 Compiling via xcodebuild..."
+    xcodebuild build \
+      -project Catscale.xcodeproj \
+      -scheme Catscale \
+      -configuration Release \
+      -destination 'generic/platform=iOS' \
+      -derivedDataPath build/DerivedData \
+      CODE_SIGNING_ALLOWED=NO \
+      CODE_SIGNING_REQUIRED=NO \
+      CODE_SIGN_IDENTITY=""
+
+    APP_PATH=$(find build/DerivedData -path "*/Build/Products/Release-iphoneos/Catscale.app" -type d 2>/dev/null | head -n 1)
+    if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+      APP_PATH=$(find build/DerivedData -name "Catscale.app" -type d 2>/dev/null | head -n 1)
+    fi
+
+    if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+      echo "❌ Failed to locate compiled Catscale.app in DerivedData"
+      exit 1
+    fi
+
+    echo "📱 Found compiled app bundle: $APP_PATH"
+
+    # Inject entitlements and strip signatures
+    cp Catscale.entitlements "$APP_PATH/archived-expanded-entitlements.xcent" 2>/dev/null || true
+    cp Catscale.entitlements "$APP_PATH/Catscale.entitlements" 2>/dev/null || true
+    strip_code_signatures "$APP_PATH"
+
+    rm -rf "$OUTPUT_DIR/Catscale.app"
+    cp -R "$APP_PATH" "$OUTPUT_DIR/"
+
+    if [ "$BUILD_IPA" = true ]; then
+      echo "📦 Packaging clean unsigned IPA..."
+      mkdir -p "$OUTPUT_DIR/Payload"
+      cp -R "$APP_PATH" "$OUTPUT_DIR/Payload/"
+      cd "$OUTPUT_DIR"
+      rm -f "$IPA_NAME"
+      zip -q -r -y "$IPA_NAME" Payload
+      rm -rf Payload
+      cd "$SCRIPT_DIR"
+    fi
+  else
+    echo "❌ Error: Catscale.xcodeproj not found. Please install xcodegen (brew install xcodegen)."
+    exit 1
+  fi
+
 elif command -v swift &>/dev/null; then
   echo "🔧 Building via SwiftPM & Apple Toolchain..."
 
@@ -203,8 +258,8 @@ elif command -v swift &>/dev/null; then
     cd "$SCRIPT_DIR"
   fi
 else
-  echo "❌ Error: Neither 'xtool' nor 'swift' was found in PATH."
-  echo "Please install xtool (https://github.com/xtool-org/xtool) or Swift toolchain."
+  echo "❌ Error: Neither 'xtool', 'xcodebuild', nor 'swift' was found in PATH."
+  echo "Please install xtool (https://github.com/xtool-org/xtool) or Xcode."
   exit 1
 fi
 
