@@ -173,7 +173,7 @@ private struct BatchItemRow: View {
                     .controlSize(.small)
             case .completed:
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.white)
             case .failed:
                 Image(systemName: "exclamationmark.circle.fill")
                     .foregroundStyle(.red)

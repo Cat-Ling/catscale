@@ -118,7 +118,7 @@ public struct UpscaleView: View {
                 if showSavedNotification {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.white)
                         Text("Saved to Photos")
                             .font(.subheadline.bold())
                     }

@@ -131,7 +131,7 @@ public struct ModelSelectionView: View {
                             Spacer()
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(.white)
                                 if currentModelSpec.isBundled {
                                     Text("Bundled (Offline)")
                                         .foregroundStyle(.secondary)

@@ -73,7 +73,7 @@ public struct SettingsView: View {
                     } else {
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(.white)
                             Text("All Models Downloaded (Offline Ready)")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
