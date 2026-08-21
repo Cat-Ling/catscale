@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 
+@MainActor
 public struct UpscaleView: View {
     @Bindable var state: AppState
 
@@ -31,27 +32,11 @@ public struct UpscaleView: View {
                             )
                         } else {
                             // Tap image to choose a new photo before upscaling
-                            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                                ZStack(alignment: .bottomTrailing) {
-                                    Image(uiImage: input)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .clipShape(.rect(cornerRadius: 16))
-
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "photo.on.rectangle")
-                                        Text("Change")
-                                    }
-                                    .font(.caption2.weight(.medium))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(.ultraThinMaterial)
-                                    .foregroundStyle(.primary)
-                                    .clipShape(.capsule)
-                                    .padding(12)
-                                }
-                            }
-                            .buttonStyle(.plain)
+                            PhotoPreviewCanvas(
+                                input: input,
+                                isProcessing: state.isProcessing,
+                                selectedPhotoItem: $selectedPhotoItem
+                            )
                         }
 
                         if state.isProcessing {
@@ -110,9 +95,10 @@ public struct UpscaleView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color(uiColor: .secondarySystemGroupedBackground))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(state.isProcessing ? .secondary : .primary)
                         .clipShape(.capsule)
                     }
+                    .disabled(state.isProcessing)
                 }
             }
             .sheet(isPresented: $showModelPicker) {
@@ -150,6 +136,39 @@ public struct UpscaleView: View {
 }
 
 // MARK: - Subviews
+private struct PhotoPreviewCanvas: View {
+    let input: UIImage
+    let isProcessing: Bool
+    @Binding var selectedPhotoItem: PhotosPickerItem?
+
+    var body: some View {
+        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            ZStack(alignment: .bottomTrailing) {
+                Image(uiImage: input)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(.rect(cornerRadius: 16))
+
+                if !isProcessing {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.on.rectangle")
+                        Text("Change")
+                    }
+                    .font(.caption2.weight(.medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial)
+                    .foregroundStyle(.primary)
+                    .clipShape(.capsule)
+                    .padding(12)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(isProcessing)
+    }
+}
+
 private struct EmptyStatePicker: View {
     @Binding var selectedItem: PhotosPickerItem?
 
