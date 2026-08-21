@@ -282,7 +282,11 @@ private struct ControlPanel: View {
                     Button {
                         if let image = state.upscaledImage {
                             Task {
-                                try? await ImageUtils.saveToPhotoLibrary(image: image)
+                                try? await ImageUtils.saveToPhotoLibrary(
+                                    image: image,
+                                    format: state.exportFormat,
+                                    quality: state.exportQuality.rawValue
+                                )
                                 withAnimation { showSavedNotification = true }
                                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                                 withAnimation { showSavedNotification = false }

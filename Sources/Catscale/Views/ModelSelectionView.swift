@@ -208,6 +208,14 @@ public struct ModelSelectionView: View {
                         }
                     }
 
+                    if state.exportFormat.supportsQualityAdjustment {
+                        Picker("Image Quality", selection: $state.exportQuality) {
+                            ForEach(ExportQuality.allCases) { quality in
+                                Text(quality.displayName).tag(quality)
+                            }
+                        }
+                    }
+
                     Toggle("Auto-Save to Photos", isOn: $state.autoSaveToLibrary)
                 }
 

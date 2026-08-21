@@ -180,11 +180,72 @@ public enum ImageUtils {
         return UIImage(cgImage: downsampledImage)
     }
 
-    /// Save an image to the iOS Photo Library asynchronously
-    public static func saveToPhotoLibrary(image: UIImage) async throws {
+    /// Encode UIImage to specified format and compression quality
+    public static func encodeData(from image: UIImage, format: ExportFormat, quality: Double = 0.95) -> Data? {
+        switch format {
+        case .png:
+            return image.pngData()
+
+        case .jpeg:
+            return image.jpegData(compressionQuality: CGFloat(quality))
+
+        case .heic:
+            guard let cgImage = image.cgImage else { return image.pngData() }
+            let data = NSMutableData()
+            let uti: CFString
+            if #available(iOS 14.0, macOS 11.0, *) {
+                uti = "public.heic" as CFString
+            } else {
+                uti = "public.heic" as CFString
+            }
+            guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, uti, 1, nil) else {
+                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
+            }
+            let options: [CFString: Any] = [
+                kCGImageDestinationLossyCompressionQuality: quality
+            ]
+            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else {
+                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
+            }
+            return data as Data
+
+        case .webp:
+            guard let cgImage = image.cgImage else { return image.pngData() }
+            let data = NSMutableData()
+            let webpUTI = "org.webmproject.webp" as CFString
+            guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, webpUTI, 1, nil) else {
+                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
+            }
+            let options: [CFString: Any] = [
+                kCGImageDestinationLossyCompressionQuality: quality
+            ]
+            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else {
+                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
+            }
+            return data as Data
+        }
+    }
+
+    /// Save an image to the iOS Photo Library asynchronously with specified format & quality
+    public static func saveToPhotoLibrary(
+        image: UIImage,
+        format: ExportFormat = .png,
+        quality: Double = 0.95
+    ) async throws {
         _ = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        try await PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.creationRequestForAsset(from: image)
+
+        if let data = encodeData(from: image, format: format, quality: quality) {
+            try await PHPhotoLibrary.shared().performChanges {
+                let creationRequest = PHAssetCreationRequest.forAsset()
+                creationRequest.addResource(with: .photo, data: data, options: nil)
+            }
+        } else {
+            try await PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }
         }
     }
 }
+

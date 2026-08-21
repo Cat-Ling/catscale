@@ -4,8 +4,9 @@ import CoreML
 
 public enum ExportFormat: String, CaseIterable, Identifiable, Sendable {
     case png = "PNG (Lossless)"
-    case jpeg = "JPEG (High Quality)"
-    case heic = "HEIC (Compressed)"
+    case jpeg = "JPEG"
+    case heic = "HEIC (High Efficiency)"
+    case webp = "WebP"
 
     public var id: String { rawValue }
     public var fileExtension: String {
@@ -13,6 +14,30 @@ public enum ExportFormat: String, CaseIterable, Identifiable, Sendable {
         case .png: return "png"
         case .jpeg: return "jpg"
         case .heic: return "heic"
+        case .webp: return "webp"
+        }
+    }
+
+    public var supportsQualityAdjustment: Bool {
+        self != .png
+    }
+}
+
+public enum ExportQuality: Double, CaseIterable, Identifiable, Sendable {
+    case maximum = 1.0
+    case recommended = 0.95
+    case high = 0.90
+    case balanced = 0.85
+    case compact = 0.75
+
+    public var id: Double { rawValue }
+    public var displayName: String {
+        switch self {
+        case .maximum: return "100% (Maximum Quality)"
+        case .recommended: return "95% (Recommended)"
+        case .high: return "90% (High Quality)"
+        case .balanced: return "85% (Balanced)"
+        case .compact: return "75% (Compact File Size)"
         }
     }
 }
@@ -66,6 +91,9 @@ public final class AppState {
     public var exportFormat: ExportFormat {
         didSet { UserDefaults.standard.set(exportFormat.rawValue, forKey: "exportFormat") }
     }
+    public var exportQuality: ExportQuality {
+        didSet { UserDefaults.standard.set(exportQuality.rawValue, forKey: "exportQuality") }
+    }
     public var autoSaveToLibrary: Bool {
         didSet { UserDefaults.standard.set(autoSaveToLibrary, forKey: "autoSaveToLibrary") }
     }
@@ -98,6 +126,13 @@ public final class AppState {
             self.exportFormat = format
         } else {
             self.exportFormat = .png
+        }
+
+        if let savedQualityVal = UserDefaults.standard.object(forKey: "exportQuality") as? Double,
+           let quality = ExportQuality(rawValue: savedQualityVal) {
+            self.exportQuality = quality
+        } else {
+            self.exportQuality = .recommended
         }
 
         if let savedSyncGap = UserDefaults.standard.string(forKey: "syncGapMode"),
@@ -174,8 +209,12 @@ public final class AppState {
                     AppLogger.shared.log("Upscale Complete in \(String(format: "%.2fs", elapsed)) (\(String(format: "%.2f", mpps)) MP/s)", isEnabled: self.loggingEnabled)
 
                     if self.autoSaveToLibrary {
-                        try? await ImageUtils.saveToPhotoLibrary(image: result)
-                        AppLogger.shared.log("Auto-saved upscaled image to Photos", isEnabled: self.loggingEnabled)
+                        try? await ImageUtils.saveToPhotoLibrary(
+                            image: result,
+                            format: self.exportFormat,
+                            quality: self.exportQuality.rawValue
+                        )
+                        AppLogger.shared.log("Auto-saved upscaled image to Photos (\(self.exportFormat.rawValue))", isEnabled: self.loggingEnabled)
                     }
                 }
             } catch is CancellationError {
@@ -243,7 +282,11 @@ public final class AppState {
                     batchQueue[i].progress = 1.0
 
                     if autoSaveToLibrary {
-                        try? await ImageUtils.saveToPhotoLibrary(image: result)
+                        try? await ImageUtils.saveToPhotoLibrary(
+                            image: result,
+                            format: exportFormat,
+                            quality: exportQuality.rawValue
+                        )
                     }
                 } catch {
                     batchQueue[i].status = .failed
