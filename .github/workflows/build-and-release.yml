@@ -102,12 +102,12 @@ jobs:
     name: Build Unsigned IPA via Darwin Toolchain
     needs: check-and-prepare
     if: needs.check-and-prepare.outputs.should_build == 'true'
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     env:
       NSUnbufferedIO: "YES"
       GIT_TERMINAL_PROMPT: "0"
-      XCODE_VERSION: "16.0"
+      XCODE_VERSION: "16.1"
     steps:
       - name: Checkout Catscale
         uses: actions/checkout@v4
@@ -125,6 +125,10 @@ jobs:
           echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> "$GITHUB_ENV"
           sudo xcodebuild -license accept
           xcodebuild -version
+
+          # Skip macro/plugin trust prompts
+          defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
 
       - name: Build & Package via build.sh
         env:
