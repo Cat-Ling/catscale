@@ -191,21 +191,8 @@ private struct ModelRowView: View {
                     .buttonStyle(.plain)
                 }
             } else if isInstalled {
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-
-                    Button {
-                        withAnimation {
-                            downloader.deleteModel(model)
-                        }
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.subheadline)
-                            .foregroundStyle(.red.opacity(0.8))
-                    }
-                    .buttonStyle(.plain)
-                }
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.white)
             } else {
                 Button("Download") {
                     Task {
@@ -217,13 +204,35 @@ private struct ModelRowView: View {
             }
         }
         .padding(.vertical, 2)
+        .contextMenu {
+            if isInstalled {
+                Button(role: .destructive) {
+                    withAnimation {
+                        downloader.deleteModel(model)
+                    }
+                } label: {
+                    Label("Delete Model", systemImage: "trash")
+                }
+            } else if !isDownloading {
+                Button {
+                    Task {
+                        await downloader.downloadModel(model)
+                    }
+                } label: {
+                    Label("Download Model", systemImage: "arrow.down.circle")
+                }
+            }
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if isInstalled {
                 Button(role: .destructive) {
-                    downloader.deleteModel(model)
+                    withAnimation {
+                        downloader.deleteModel(model)
+                    }
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
+                .tint(.red)
             }
         }
     }
