@@ -122,7 +122,11 @@ embed_mach_o_entitlements() {
 
   if [ -f "$bin_path" ] && [ -f "$ent_file" ]; then
     echo "🔑 Injecting entitlements into Mach-O executable: $bin_path"
+    if command -v codesign &>/dev/null; then
+      codesign --remove-signature "$bin_path" 2>/dev/null || true
+    fi
     if command -v ldid &>/dev/null; then
+      ldid -s "$bin_path" 2>/dev/null || true
       echo "Running: ldid -S$ent_file $bin_path"
       ldid -S"$ent_file" "$bin_path" || true
     fi
