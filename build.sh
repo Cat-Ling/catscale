@@ -111,6 +111,36 @@ strip_code_signatures() {
   fi
 }
 
+merge_info_plist() {
+  local target_app="$1"
+  if [ -d "$target_app" ] && [ -f "Catscale-Info.plist" ]; then
+    echo "📋 Ensuring Info.plist has complete launch screen and permission metadata..."
+    python3 -c "
+import plistlib, os
+
+dest_path = os.path.join('$target_app', 'Info.plist')
+src_path = 'Catscale-Info.plist'
+
+dest = {}
+if os.path.exists(dest_path):
+    try:
+        with open(dest_path, 'rb') as f:
+            dest = plistlib.load(f)
+    except Exception:
+        dest = {}
+
+try:
+    with open(src_path, 'rb') as f:
+        src = plistlib.load(f)
+    dest.update(src)
+    with open(dest_path, 'wb') as f:
+        plistlib.dump(dest, f)
+except Exception as e:
+    pass
+" 2>/dev/null || cp Catscale-Info.plist "$target_app/Info.plist" 2>/dev/null || true
+  fi
+}
+
 # Determine build tool
 if command -v xtool &>/dev/null; then
   echo "🔧 Building via xtool (Cross-platform SwiftPM Darwin toolchain)..."
@@ -119,6 +149,9 @@ if command -v xtool &>/dev/null; then
 
   APP_SOURCE="xtool/Catscale.app"
   if [ -d "$APP_SOURCE" ]; then
+    # Merge complete Info.plist
+    merge_info_plist "$APP_SOURCE"
+
     # Inject entitlements for sideloading tools
     cp Catscale.entitlements "$APP_SOURCE/archived-expanded-entitlements.xcent" 2>/dev/null || true
     cp Catscale.entitlements "$APP_SOURCE/Catscale.entitlements" 2>/dev/null || true
@@ -176,6 +209,9 @@ elif command -v xcodebuild &>/dev/null; then
 
     echo "📱 Found compiled app bundle: $APP_PATH"
 
+    # Merge complete Info.plist
+    merge_info_plist "$APP_PATH"
+
     # Inject entitlements and strip signatures
     cp Catscale.entitlements "$APP_PATH/archived-expanded-entitlements.xcent" 2>/dev/null || true
     cp Catscale.entitlements "$APP_PATH/Catscale.entitlements" 2>/dev/null || true
@@ -221,9 +257,9 @@ elif command -v swift &>/dev/null; then
   if [ -f "$BIN_PATH/Catscale" ]; then
     cp "$BIN_PATH/Catscale" "$APP_DIR/"
   fi
-  if [ -f "Catscale-Info.plist" ]; then
-    cp Catscale-Info.plist "$APP_DIR/Info.plist"
-  fi
+
+  # Merge complete Info.plist
+  merge_info_plist "$APP_DIR"
 
   # Copy resource bundles and compiled models
   if [ -d "$BIN_PATH/Catscale_Catscale.bundle" ]; then

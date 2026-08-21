@@ -22,8 +22,9 @@ targets:
         PRODUCT_NAME: Catscale
         PRODUCT_BUNDLE_IDENTIFIER: com.catscale.app
         SWIFT_VERSION: "6.0"
-        GENERATE_INFOPLIST_FILE: false
+        GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Catscale-Info.plist
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGN_IDENTITY: ""
