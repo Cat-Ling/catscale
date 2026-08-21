@@ -207,6 +207,7 @@ if command -v xtool &>/dev/null; then
     # Inject entitlements for sideloading tools
     cp Catscale.entitlements "$APP_SOURCE/archived-expanded-entitlements.xcent" 2>/dev/null || true
     cp Catscale.entitlements "$APP_SOURCE/Catscale.entitlements" 2>/dev/null || true
+    cp Catscale.entitlements "$APP_SOURCE/Entitlements.plist" 2>/dev/null || true
 
     # Strip existing signatures
     strip_code_signatures "$APP_SOURCE"
@@ -267,6 +268,7 @@ elif command -v xcodebuild &>/dev/null; then
     # Inject entitlements and strip signatures
     cp Catscale.entitlements "$APP_PATH/archived-expanded-entitlements.xcent" 2>/dev/null || true
     cp Catscale.entitlements "$APP_PATH/Catscale.entitlements" 2>/dev/null || true
+    cp Catscale.entitlements "$APP_PATH/Entitlements.plist" 2>/dev/null || true
     strip_code_signatures "$APP_PATH"
 
     rm -rf "$OUTPUT_DIR/Catscale.app"
@@ -333,6 +335,7 @@ elif command -v swift &>/dev/null; then
   # Inject entitlements and strip signatures
   cp Catscale.entitlements "$APP_DIR/archived-expanded-entitlements.xcent" 2>/dev/null || true
   cp Catscale.entitlements "$APP_DIR/Catscale.entitlements" 2>/dev/null || true
+  cp Catscale.entitlements "$APP_DIR/Entitlements.plist" 2>/dev/null || true
   strip_code_signatures "$APP_DIR"
 
   if [ "$BUILD_IPA" = true ]; then
