@@ -122,10 +122,6 @@ embed_mach_o_entitlements() {
 
   if [ -f "$bin_path" ] && [ -f "$ent_file" ]; then
     echo "🔑 Injecting entitlements into Mach-O executable: $bin_path"
-    if command -v codesign &>/dev/null; then
-      echo "Running: codesign -s - --force --entitlements $ent_file $bin_path"
-      codesign -s - --force --entitlements "$ent_file" "$bin_path" || true
-    fi
     if command -v ldid &>/dev/null; then
       echo "Running: ldid -S$ent_file $bin_path"
       ldid -S"$ent_file" "$bin_path" || true
