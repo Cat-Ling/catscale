@@ -123,79 +123,65 @@ public struct ModelSelectionView: View {
                     }
                 }
 
-                // MARK: - 2. Model Status & Dynamic Storage Footprint
-                Section {
-                    if isModelInstalled {
-                        HStack {
-                            Text("Status")
-                            Spacer()
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.white)
-                                if currentModelSpec.isBundled {
-                                    Text("Bundled (Offline)")
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text(String(format: "Installed (%.1f MB on disk)", currentModelSpec.uncompressedSizeMB))
+                // MARK: - 2. Model Download Action (Only shown when model is missing from device)
+                if !isModelInstalled {
+                    Section {
+                        if let progress = downloader.downloadingModels[currentModelSpec.id] {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Downloading Model...")
+                                        .font(.subheadline.bold())
+                                    Text(String(format: "%d%% • %.1f MB on disk when ready", Int(progress * 100), currentModelSpec.uncompressedSizeMB))
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                            }
-                        }
-                    } else if let progress = downloader.downloadingModels[currentModelSpec.id] {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Downloading Model...")
-                                    .font(.subheadline.bold())
-                                Text(String(format: "%d%% • %.1f MB on disk when ready", Int(progress * 100), currentModelSpec.uncompressedSizeMB))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
 
-                            Spacer()
+                                Spacer()
 
-                            Button {
-                                downloader.cancelDownload(for: currentModelSpec)
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .stroke(Color.secondary.opacity(0.2), lineWidth: 3)
-                                    Circle()
-                                        .trim(from: 0, to: CGFloat(progress))
-                                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                                        .rotationEffect(.degrees(-90))
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 8, weight: .bold))
-                                        .foregroundStyle(Color.accentColor)
+                                Button {
+                                    downloader.cancelDownload(for: currentModelSpec)
+                                } label: {
+                                    ZStack {
+                                        Circle()
+                                            .stroke(Color.secondary.opacity(0.2), lineWidth: 3)
+                                        Circle()
+                                            .trim(from: 0, to: CGFloat(progress))
+                                            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                            .rotationEffect(.degrees(-90))
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                    .frame(width: 30, height: 30)
                                 }
-                                .frame(width: 30, height: 30)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
-                        }
-                    } else {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(currentModelSpec.name)
-                                    .font(.subheadline)
-                                Text(String(format: "Download: %.1f MB • Disk: %.1f MB", currentModelSpec.downloadSizeMB, currentModelSpec.uncompressedSizeMB))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                        } else {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(currentModelSpec.name)
+                                        .font(.subheadline)
+                                    Text(String(format: "Download: %.1f MB • Disk: %.1f MB", currentModelSpec.downloadSizeMB, currentModelSpec.uncompressedSizeMB))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
 
-                            Spacer()
+                                Spacer()
 
-                            Button("Download") {
-                                Task {
-                                    let success = await downloader.downloadModel(currentModelSpec)
-                                    if success {
-                                        syncSelectedModel()
-                                    } else if let err = downloader.downloadErrors[currentModelSpec.id] {
-                                        downloadAlertMessage = err
-                                        showDownloadAlert = true
+                                Button("Download") {
+                                    Task {
+                                        let success = await downloader.downloadModel(currentModelSpec)
+                                        if success {
+                                            syncSelectedModel()
+                                        } else if let err = downloader.downloadErrors[currentModelSpec.id] {
+                                            downloadAlertMessage = err
+                                            showDownloadAlert = true
+                                        }
                                     }
                                 }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
                         }
                     }
                 }

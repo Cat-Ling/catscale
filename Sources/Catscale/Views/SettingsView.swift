@@ -16,8 +16,8 @@ public struct SettingsView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                // MARK: - Models Storage & Offline Manager
-                Section("AI Models & Offline Storage") {
+                // MARK: - Models
+                Section("Models") {
                     let downloadable = ModelRegistry.allModels.filter { !$0.isBundled }
                     let installed = downloadable.filter { downloader.isModelInstalled($0) }
                     let installedMB = installed.reduce(0.0) { $0 + $1.uncompressedSizeMB }
@@ -74,7 +74,7 @@ public struct SettingsView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.seal.fill")
                                 .foregroundStyle(.white)
-                            Text("All Models Downloaded (Offline Ready)")
+                            Text("All Models Downloaded")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
