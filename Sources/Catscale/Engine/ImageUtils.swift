@@ -192,29 +192,8 @@ public enum ImageUtils {
         case .heic:
             guard let cgImage = image.cgImage else { return image.pngData() }
             let data = NSMutableData()
-            let uti: CFString
-            if #available(iOS 14.0, macOS 11.0, *) {
-                uti = "public.heic" as CFString
-            } else {
-                uti = "public.heic" as CFString
-            }
+            let uti = "public.heic" as CFString
             guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, uti, 1, nil) else {
-                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
-            }
-            let options: [CFString: Any] = [
-                kCGImageDestinationLossyCompressionQuality: quality
-            ]
-            CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
-            guard CGImageDestinationFinalize(destination) else {
-                return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
-            }
-            return data as Data
-
-        case .webp:
-            guard let cgImage = image.cgImage else { return image.pngData() }
-            let data = NSMutableData()
-            let webpUTI = "org.webmproject.webp" as CFString
-            guard let destination = CGImageDestinationCreateWithData(data as CFMutableData, webpUTI, 1, nil) else {
                 return image.jpegData(compressionQuality: CGFloat(quality)) ?? image.pngData()
             }
             let options: [CFString: Any] = [

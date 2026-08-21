@@ -6,7 +6,6 @@ public enum ExportFormat: String, CaseIterable, Identifiable, Sendable {
     case png = "PNG (Lossless)"
     case jpeg = "JPEG"
     case heic = "HEIC (High Efficiency)"
-    case webp = "WebP"
 
     public var id: String { rawValue }
     public var fileExtension: String {
@@ -14,7 +13,6 @@ public enum ExportFormat: String, CaseIterable, Identifiable, Sendable {
         case .png: return "png"
         case .jpeg: return "jpg"
         case .heic: return "heic"
-        case .webp: return "webp"
         }
     }
 
