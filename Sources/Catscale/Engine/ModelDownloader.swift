@@ -10,7 +10,15 @@ public final class ModelDownloader {
     public var downloadErrors: [String: String] = [:]
     public var installedModelIds: Set<String> = []
 
+    // MARK: - Batch Download State
+    public var isDownloadingAll: Bool = false
+    public var downloadAllCurrentIndex: Int = 0
+    public var downloadAllTotalCount: Int = 0
+    public var downloadAllCurrentModelName: String = ""
+    public var downloadAllProgress: Double = 0.0
+
     private var activeTasks: [String: Task<Void, Never>] = [:]
+    private var batchTask: Task<Void, Never>? = nil
 
     private init() {
         refreshInstalledModels()
@@ -91,6 +99,67 @@ public final class ModelDownloader {
         activeTasks.removeValue(forKey: model.id)
         downloadingModels.removeValue(forKey: model.id)
         downloadErrors[model.id] = nil
+    }
+
+    /// Cancel all ongoing downloads including batch
+    public func cancelDownloadAll() {
+        batchTask?.cancel()
+        batchTask = nil
+        isDownloadingAll = false
+        for (id, task) in activeTasks {
+            task.cancel()
+            downloadingModels.removeValue(forKey: id)
+        }
+        activeTasks.removeAll()
+    }
+
+    /// Download all missing models one by one sequentially
+    public func downloadAllModels() {
+        guard !isDownloadingAll else { return }
+
+        let missingModels = ModelRegistry.allModels.filter { !$0.isBundled && !isModelInstalled($0) }
+        guard !missingModels.isEmpty else { return }
+
+        isDownloadingAll = true
+        downloadAllTotalCount = missingModels.count
+        downloadAllCurrentIndex = 0
+        downloadAllProgress = 0.0
+
+        batchTask = Task { @MainActor in
+            for (index, model) in missingModels.enumerated() {
+                if Task.isCancelled { break }
+
+                downloadAllCurrentIndex = index + 1
+                downloadAllCurrentModelName = model.name
+                downloadAllProgress = Double(index) / Double(missingModels.count)
+
+                _ = await downloadModel(model)
+
+                downloadAllProgress = Double(index + 1) / Double(missingModels.count)
+            }
+
+            self.isDownloadingAll = false
+            self.downloadAllCurrentModelName = ""
+            self.refreshInstalledModels()
+        }
+    }
+
+    /// Delete all locally downloaded models to free storage space
+    public func deleteAllDownloadedModels() {
+        cancelDownloadAll()
+
+        let fileManager = FileManager.default
+        let searchDirectories = [
+            fileManager.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Models"),
+            fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("Models"),
+            fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Models")
+        ].compactMap { $0 }
+
+        for dir in searchDirectories {
+            try? fileManager.removeItem(at: dir)
+        }
+
+        refreshInstalledModels()
     }
 
     /// Download and unpack model with live streaming progress

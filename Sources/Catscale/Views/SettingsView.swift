@@ -4,7 +4,9 @@ import CoreML
 public struct SettingsView: View {
     @Bindable var state: AppState
     @State private var showLogsSheet: Bool = false
+    @State private var showDeleteModelsAlert: Bool = false
     @State private var logger = AppLogger.shared
+    private var downloader = ModelDownloader.shared
 
     public init(state: AppState) {
         self.state = state
@@ -13,6 +15,76 @@ public struct SettingsView: View {
     public var body: some View {
         NavigationStack {
             Form {
+                // MARK: - Models Storage & Offline Manager
+                Section("AI Models & Offline Storage") {
+                    let downloadable = ModelRegistry.allModels.filter { !$0.isBundled }
+                    let installed = downloadable.filter { downloader.isModelInstalled($0) }
+                    let installedMB = installed.reduce(0.0) { $0 + $1.uncompressedSizeMB }
+
+                    HStack {
+                        Text("Installed Models")
+                        Spacer()
+                        Text("\(installed.count) / \(downloadable.count)")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Disk Usage")
+                        Spacer()
+                        Text(String(format: "%.1f MB", installedMB))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if downloader.isDownloadingAll {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Downloading \(downloader.downloadAllCurrentModelName)...")
+                                    .font(.subheadline.bold())
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("(\(downloader.downloadAllCurrentIndex)/\(downloader.downloadAllTotalCount))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            ProgressView(value: downloader.downloadAllProgress)
+                                .progressViewStyle(.linear)
+
+                            Button("Cancel Download", role: .cancel) {
+                                downloader.cancelDownloadAll()
+                            }
+                            .controlSize(.small)
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(.vertical, 4)
+                    } else if installed.count < downloadable.count {
+                        Button {
+                            downloader.downloadAllModels()
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                Text("Download All Models (\(downloadable.count - installed.count) remaining)")
+                                    .fontWeight(.medium)
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.green)
+                            Text("All Models Downloaded (Offline Ready)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !installed.isEmpty && !downloader.isDownloadingAll {
+                        Button("Delete Downloaded Models", role: .destructive) {
+                            showDeleteModelsAlert = true
+                        }
+                    }
+                }
+
                 // MARK: - Performance
                 Section("Compute Engine") {
                     Picker("Hardware Acceleration", selection: $state.computeUnitsSelection) {
@@ -56,6 +128,17 @@ public struct SettingsView: View {
             .navigationTitle("Settings")
             .sheet(isPresented: $showLogsSheet) {
                 SessionLogsView()
+            }
+            .alert("Delete Downloaded Models?", isPresented: $showDeleteModelsAlert) {
+                Button("Delete All", role: .destructive) {
+                    downloader.deleteAllDownloadedModels()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will remove all downloaded model files from local storage to free up space. Bundled Waifu2x models will remain available.")
+            }
+            .onAppear {
+                downloader.refreshInstalledModels()
             }
         }
     }
