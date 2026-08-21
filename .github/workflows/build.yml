@@ -1,0 +1,57 @@
+name: Build & Test CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      NSUnbufferedIO: "YES"
+      GIT_TERMINAL_PROMPT: "0"
+      XCODE_VERSION: "26.6"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode & Accept License
+        run: |
+          XCODE_APP="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [ ! -d "$XCODE_APP" ]; then
+            XCODE_APP=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
+          fi
+          echo "Selected Xcode: $XCODE_APP"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> "$GITHUB_ENV"
+          sudo xcodebuild -license accept
+          xcodebuild -version
+
+          # Skip macro/plugin trust prompts
+          defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
+
+      - name: Build & Package via build.sh
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+          ./build.sh --clean
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Catscale-unsigned-ipa
+          path: build_output/*.ipa
+          retention-days: 7

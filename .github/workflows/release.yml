@@ -1,0 +1,84 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      NSUnbufferedIO: "YES"
+      GIT_TERMINAL_PROMPT: "0"
+      XCODE_VERSION: "26.6"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Select Xcode & Accept License
+        run: |
+          XCODE_APP="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [ ! -d "$XCODE_APP" ]; then
+            XCODE_APP=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
+          fi
+          echo "Selected Xcode: $XCODE_APP"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> "$GITHUB_ENV"
+          sudo xcodebuild -license accept
+          xcodebuild -version
+
+          # Skip macro/plugin trust prompts
+          defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
+
+      - name: Build & Package via build.sh
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+          ./build.sh --clean
+
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF_NAME}"
+          echo "🚀 Processing Release for Tag: ${TAG_NAME}"
+
+          IPA_SOURCE="build_output/Catscale-unsigned.ipa"
+          IPA_RELEASE="Catscale-${TAG_NAME}-unsigned.ipa"
+
+          if [ -f "$IPA_SOURCE" ]; then
+            cp "$IPA_SOURCE" "$IPA_RELEASE"
+          else
+            echo "❌ Failed to locate $IPA_SOURCE"
+            exit 1
+          fi
+
+          # Extract user's tag message if available
+          TAG_MESSAGE=$(git tag -l --format="%(contents)" "${TAG_NAME}" | sed '/^[[:space:]]*$/d' || true)
+
+          # Check if a release already exists (e.g. created from GitHub UI with release notes)
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Uploading IPA to existing release ${TAG_NAME}..."
+            gh release upload "${TAG_NAME}" "${IPA_RELEASE}" --clobber
+          else
+            echo "Creating new release ${TAG_NAME}..."
+            if [ -n "$TAG_MESSAGE" ]; then
+              gh release create "${TAG_NAME}" "${IPA_RELEASE}" --title "Catscale ${TAG_NAME}" --notes "$TAG_MESSAGE"
+            else
+              gh release create "${TAG_NAME}" "${IPA_RELEASE}" --title "Catscale ${TAG_NAME}" --generate-notes
+            fi
+          fi
+
+          echo "🎉 Successfully published ${IPA_RELEASE} to release ${TAG_NAME}!"
