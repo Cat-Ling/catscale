@@ -722,6 +722,8 @@ public enum ModelRegistry {
         if group.supportsNoiseReduction {
             if let exact = variantModels.first(where: { $0.noiseLevel == noiseLevel }) {
                 return exact
+            } else if let closest = variantModels.filter({ $0.noiseLevel >= 0 }).min(by: { abs($0.noiseLevel - noiseLevel) < abs($1.noiseLevel - noiseLevel) }) {
+                return closest
             }
         }
 
