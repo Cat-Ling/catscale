@@ -7,20 +7,24 @@
 ## 1. Architecture Overview
 
 * **Engine Layer (`Sources/Catscale/Engine/`):**
-  * `CoreMLUpscaler.swift`: Hardware-accelerated inference runner (Apple Neural Engine + Metal GPU + CPU) supporting dynamic 3D, 4D, and 5D tensor ranks and `Float16`/`Float32` precision.
-  * `ImageTiler.swift`: Overlap tile decomposition and stitching engine to eliminate iOS Jetsam OOM crashes on multi-megapixel images.
-  * `UpscalerEngine.swift`: Actor-isolated pipeline orchestrating planar RGB extraction, tiling, inference, and Lanczos alpha resampling.
-  * `ModelDownloader.swift`: Streamed chunk downloader with cancellation and per-scale file verification.
+  * `CoreMLUpscaler.swift`: Hardware-accelerated inference runner with cascading execution fallback (**Apple Neural Engine $\to$ Metal GPU $\to$ CPU**) supporting dynamic 3D, 4D, and 5D tensor ranks and `Float16`/`Float32` precision.
+  * `ImageTiler.swift`: Overlap tile decomposition and seamless continuous stitching engine to eliminate iOS Jetsam OOM crashes on multi-megapixel images.
+  * `UpscalerEngine.swift`: Actor-isolated pipeline orchestrating planar RGB extraction, optimal per-model receptive margin padding, tiling, inference, and Lanczos alpha resampling.
+  * `ModelType.swift`: Complete registry of all 27 models across 9 algorithms, defining input/output channels, default tile sizes, overlap margins, and remote asset metadata.
+  * `ModelDownloader.swift`: Streamed chunk downloader with sequential "Download All" batching, per-model deletion (`deleteModel`), download cancellation, and storage verification.
   * `ZipExtractor.swift`: ARM64-safe ZIP decompression with byte-aligned bit-shift readers.
   * `AppLogger.swift`: In-memory session diagnostics and synchronous disk flush to `Documents/catscale.log`.
 * **State & App Layer (`Sources/Catscale/App/`):**
-  * `AppState.swift`: State container with `@Observable` and `UserDefaults` persistence.
+  * `AppState.swift`: State container with `@Observable`, Swift 6 concurrency isolation, and `UserDefaults` persistence.
   * `CatscaleApp.swift`: SwiftUI App lifecycle entry point.
 * **UI Layer (`Sources/Catscale/Views/`):**
-  * `UpscaleView.swift`: Main viewport with non-destructive photo picker, left-aligned brand header, and action bar.
-  * `ComparisonSliderView.swift`: 1:1 before/after comparison canvas with isolated pan and pinch-zoom.
-  * `ModelSelectionView.swift`: Dropdown sheet with categorized model selection, dynamic scale factors, and output resolution calculation.
-  * `SettingsView.swift`: Compute hardware selection, tile size tuning, overlap margin, and session logs inspector.
+  * `ContentView.swift`: Primary navigation coordinator.
+  * `UpscaleView.swift`: Main viewport with non-destructive photo picker, left-aligned brand header, live comparison canvas, and processing state locks.
+  * `ComparisonSliderView.swift`: 1:1 before/after comparison canvas with isolated pan, pinch-zoom, and responsive divider tap tracking.
+  * `ModelSelectionView.swift`: Two-tier selector (**Algorithm $\to$ Model Variant**) with contextual controls (SRMD Denoise $0\dots10$, Real-CUGAN SyncGap & Noise, Waifu2x Noise Reduction).
+  * `ManageModelsView.swift`: Storage inspector with segmented filtering (`All`, `Installed`, `Not Installed`), individual swipe-to-delete, and direct repair/re-downloads.
+  * `BatchUpscaleView.swift`: Multi-image batch queue pipeline.
+  * `SettingsView.swift`: Hardware compute engine selection, offline model storage manager, batch downloader, session log viewer, and diagnostic tools.
 
 ---
 
@@ -46,36 +50,26 @@
 
 ---
 
-## 3. AI Model Addition & Compatibility Standard (CRITICAL)
+## 3. AI Model Hierarchy & Supported Algorithms
 
-When adding or updating AI models in Catscale, you **must strictly adhere to the following compatibility criteria**:
+Catscale categorizes models under **9 Core Algorithms** across **Anime & Art** and **Photo & Universal** domains:
 
-### Supported Model Formats
-1. **Apple Core ML Packages (`.mlpackage`):**
-   * Must contain `Manifest.json`, `Data/com.apple.CoreML/model.mlmodel`, and `Data/com.apple.CoreML/weights/weight.bin`.
-2. **Compiled or Raw Core ML Models (`.mlmodel`, `.mlmodelc`):**
-   * Must be standard protobuf models compilable via `MLModel.compileModel(at:)`.
+### Anime & Art
+1. **Real-CUGAN:** UpCunet models ($2\times, 3\times, 4\times$) with Denoising levels and **SyncGap** (`None`, `Accurate/SyncGap 1`, `Rough/SyncGap 2`, `Very Rough/SyncGap 3`) seam synchronization.
+2. **Real-ESRGAN (Anime):** `Real-ESRGAN UltraSharp (4x)` and `Real-ESRGAN Anime 6B (4x)`.
+3. **Waifu2x (Anime):** Bundled offline Caffe models ($2\times$, Noise levels $0\dots3$).
+4. **ESRGAN (Manga & Clean):** `ESRGAN Manga Clean (1x)` JPEG restoration model.
 
-### ⛔ Prohibited Formats (Do Not Add Directly)
-* **NCNN Binaries (`.bin` / `.param`):** Core ML cannot execute NCNN files directly.
-* **Raw PyTorch (`.pth`, `.pt`), ONNX, or TensorFlow (`.tflite`):** Must first be converted to `.mlpackage` via `coremltools` before integration.
+### Photo & Universal
+5. **SRMD (Photo & Universal):** PCA blur map models ($2\times, 3\times, 4\times$) with $0\dots10$ Denoise levels, plus noise-free `SRMDNF (2x, 3x, 4x)`.
+6. **BSRGAN (Photo & Degraded):** Blind super-resolution ($2\times, 4\times$) for heavily degraded, vintage, or noisy images.
+7. **Real-ESRNet (Photo & Natural):** `Real-ESRNet x4 Plus (4x)` PSNR-oriented natural super-resolution.
+8. **Real-ESRGAN (Universal):** `Real-ESRGAN x4 Plus (4x)` universal texture and photo model.
+9. **Waifu2x (Photo):** Bundled offline Caffe photo models ($2\times$, Noise levels $1\dots2$).
 
-### Tensor Shape & Datatype Compatibility
-* **Input Rank:** Must accept planar RGB tensors: `[1, 3, H, W]`, `[3, H, W]`, or `[1, 1, 3, H, W]`.
-* **Output Rank:** Supported ranks are 3D (`[3, H, W]`), 4D (`[1, 3, H, W]` / `[1, H, W, 3]`), and 5D (`[1, 1, 3, H, W]`).
-* **Precision:** Weights and activations must execute safely on `Float16` (Apple Neural Engine) and `Float32` without memory alignment faults.
-
-### Mandatory Pre-Integration Verification Checklist
-Before committing any new model to `ModelType.swift`:
-1. **Download & Inspect Archive:** Verify all files inside the zip using a script. Ensure valid `Manifest.json` and `model.mlmodel` exist.
-2. **Measure Sizes:** Record the exact **compressed download size** and **uncompressed on-disk size** in megabytes.
-3. **Register in `ModelType.swift`:**
-   * Add the `ModelSpec` entry with `downloadSizeMB` and `uncompressedSizeMB`.
-   * Add the model to `ModelRegistry.allModels`.
-   * Update `ModelGroup` and `ModelFamily` enums if creating a new category.
-4. **Update File Discovery in `ModelDownloader.swift`:**
-   * Add the model's filename or package keyword to the `switch model.group` matcher.
-5. **Verify Compilation:** Run `./build.sh` to confirm zero Swift / packaging errors.
+### Model Distribution Standard
+* All remote model archives are packaged as Float16 `.mlpackage.zip` files hosted on GitHub Releases:
+  `https://github.com/Cat-Ling/CatML/releases/download/0.1/<Model-Name>.mlpackage.zip`
 
 ---
 
@@ -83,5 +77,7 @@ Before committing any new model to `ModelType.swift`:
 
 * **Minimalist iOS Design:** Zero "AI magic" emojis, sparkles, or tacky decorative borders. Use native Apple HIG components (`Form`, `Picker`, `Section`, `PhotosPicker`, `Material`).
 * **Non-Destructive Workflows:** Tapping an image to change photos must never wipe the existing photo if the user cancels the picker.
+* **Input Locking:** The image preview and model selection buttons must be disabled (`.disabled(state.isProcessing)`) while an upscale task is executing.
+* **Zero External Dependencies:** Use native Apple frameworks (`CoreML`, `Metal`, `Accelerate`, `SwiftUI`, `PhotosUI`) and pure Swift implementations.
 * **Swift 6 Concurrency:** Never block the main thread. Heavy image processing and model inference must run inside actor-isolated background tasks.
 * **Logging:** Runtime diagnostics must go through `AppLogger.shared.log(..., isEnabled: loggingEnabled)` to ensure synchronous flushing to `Documents/catscale.log`.
