@@ -123,7 +123,7 @@ public struct SettingsView: View {
 
                 // MARK: - About
                 Section("About") {
-                    LabeledContent("Version", value: "0.4")
+                    LabeledContent("Version", value: Bundle.main.appVersion)
                     LabeledContent("License", value: "MIT")
                 }
             }

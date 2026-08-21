@@ -310,3 +310,19 @@ public final class AppState {
         batchQueue.removeAll()
     }
 }
+
+// MARK: - Bundle Version Derivation
+extension Bundle {
+    public var appVersion: String {
+        infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.1"
+    }
+
+    public var buildNumber: String {
+        infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+
+    public var fullVersionString: String {
+        "\(appVersion) (\(buildNumber))"
+    }
+}
+
