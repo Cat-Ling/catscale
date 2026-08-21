@@ -49,7 +49,7 @@ public struct SettingsView: View {
 
                 // MARK: - About
                 Section("About") {
-                    LabeledContent("Version", value: "0.0.3")
+                    LabeledContent("Version", value: "0.4")
                     LabeledContent("License", value: "MIT")
                 }
             }
