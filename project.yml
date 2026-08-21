@@ -21,6 +21,9 @@ targets:
       base:
         PRODUCT_NAME: Catscale
         PRODUCT_BUNDLE_IDENTIFIER: com.catscale.app
+        EXECUTABLE_NAME: Catscale
+        MARKETING_VERSION: "0.0.2"
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Catscale-Info.plist

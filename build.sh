@@ -114,11 +114,12 @@ strip_code_signatures() {
 merge_info_plist() {
   local target_app="$1"
   if [ -d "$target_app" ] && [ -f "Catscale-Info.plist" ]; then
-    echo "📋 Ensuring Info.plist has complete launch screen and permission metadata..."
-    python3 -c "
-import plistlib, os
+    echo "📋 Resolving bundle variables and enforcing complete Info.plist metadata..."
+    python3 - "$target_app" << 'EOF'
+import plistlib, os, sys
 
-dest_path = os.path.join('$target_app', 'Info.plist')
+target_app = sys.argv[1]
+dest_path = os.path.join(target_app, 'Info.plist')
 src_path = 'Catscale-Info.plist'
 
 dest = {}
@@ -133,11 +134,40 @@ try:
     with open(src_path, 'rb') as f:
         src = plistlib.load(f)
     dest.update(src)
+
+    replacements = {
+        '$(PRODUCT_NAME)': 'Catscale',
+        '$(PRODUCT_BUNDLE_IDENTIFIER)': 'com.catscale.app',
+        '$(EXECUTABLE_NAME)': 'Catscale',
+        '$(TARGET_NAME)': 'Catscale',
+        '$(MARKETING_VERSION)': '0.0.2',
+        '$(CURRENT_PROJECT_VERSION)': '2',
+    }
+
+    for k, v in list(dest.items()):
+        if isinstance(v, str):
+            for var, val in replacements.items():
+                if var in v:
+                    v = v.replace(var, val)
+            dest[k] = v
+
+    dest['CFBundleName'] = 'Catscale'
+    dest['CFBundleDisplayName'] = 'Catscale'
+    dest['CFBundleExecutable'] = 'Catscale'
+    dest['CFBundleIdentifier'] = 'com.catscale.app'
+    dest['CFBundlePackageType'] = 'APPL'
+    dest['CFBundleShortVersionString'] = '0.0.2'
+    dest['CFBundleVersion'] = '2'
+    dest['LSRequiresIPhoneOS'] = True
+    dest['UIDeviceFamily'] = [1, 2]
+    if 'UILaunchScreen' not in dest:
+        dest['UILaunchScreen'] = {}
+
     with open(dest_path, 'wb') as f:
         plistlib.dump(dest, f)
 except Exception as e:
     pass
-" 2>/dev/null || cp Catscale-Info.plist "$target_app/Info.plist" 2>/dev/null || true
+EOF
   fi
 }
 
