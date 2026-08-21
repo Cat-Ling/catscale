@@ -113,21 +113,23 @@ strip_code_signatures() {
 
 merge_info_plist() {
   local target_app="$1"
-  if [ -d "$target_app" ] && [ -f "Catscale-Info.plist" ]; then
+  local src_info="$SCRIPT_DIR/Catscale-Info.plist"
+  if [ -d "$target_app" ] && [ -f "$src_info" ]; then
     echo "📋 Resolving bundle variables and enforcing complete Info.plist metadata..."
-    python3 - "$target_app" << 'EOF'
+    python3 - "$target_app" "$src_info" << 'EOF'
 import plistlib, os, sys
 
 target_app = sys.argv[1]
+src_path = sys.argv[2]
 dest_path = os.path.join(target_app, 'Info.plist')
-src_path = 'Catscale-Info.plist'
 
 dest = {}
 if os.path.exists(dest_path):
     try:
         with open(dest_path, 'rb') as f:
             dest = plistlib.load(f)
-    except Exception:
+    except Exception as e:
+        print("Warning reading dest plist:", e)
         dest = {}
 
 try:
@@ -142,6 +144,7 @@ try:
         '$(TARGET_NAME)': 'Catscale',
         '$(MARKETING_VERSION)': '0.0.2',
         '$(CURRENT_PROJECT_VERSION)': '2',
+        '$(DEVELOPMENT_LANGUAGE)': 'en',
     }
 
     for k, v in list(dest.items()):
@@ -158,6 +161,7 @@ try:
     dest['CFBundlePackageType'] = 'APPL'
     dest['CFBundleShortVersionString'] = '0.0.2'
     dest['CFBundleVersion'] = '2'
+    dest['CFBundleDevelopmentRegion'] = 'en'
     dest['LSRequiresIPhoneOS'] = True
     dest['UIDeviceFamily'] = [1, 2]
     if 'UILaunchScreen' not in dest:
@@ -165,8 +169,10 @@ try:
 
     with open(dest_path, 'wb') as f:
         plistlib.dump(dest, f)
+    print("✅ Successfully merged and sanitized Info.plist at", dest_path)
 except Exception as e:
-    pass
+    print("Error during Info.plist merge:", e)
+    sys.exit(1)
 EOF
   fi
 }
