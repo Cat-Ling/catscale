@@ -5,7 +5,7 @@ public struct ModelSelectionView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedGroup: ModelGroup
-    @State private var selectedScale: Int
+    @State private var selectedVariantName: String
     @State private var selectedNoiseLevel: Int
     @State private var downloadAlertMessage: String?
     @State private var showDownloadAlert: Bool = false
@@ -15,12 +15,12 @@ public struct ModelSelectionView: View {
     public init(state: AppState) {
         self.state = state
         _selectedGroup = State(initialValue: state.selectedModel.group)
-        _selectedScale = State(initialValue: state.selectedModel.scale)
+        _selectedVariantName = State(initialValue: state.selectedModel.variantName)
         _selectedNoiseLevel = State(initialValue: max(0, state.selectedModel.noiseLevel))
     }
 
     private var currentModelSpec: ModelSpec {
-        ModelRegistry.resolve(group: selectedGroup, scale: selectedScale, noiseLevel: selectedNoiseLevel)
+        ModelRegistry.resolve(group: selectedGroup, variantName: selectedVariantName, noiseLevel: selectedNoiseLevel)
     }
 
     private var isModelInstalled: Bool {
@@ -34,10 +34,10 @@ public struct ModelSelectionView: View {
     public var body: some View {
         NavigationStack {
             Form {
-                // MARK: - 1. Model & Scale Selection
+                // MARK: - 1. Algorithm & Model Selection
                 Section("Upscaling Engine") {
-                    // Model Dropdown with Categories
-                    Picker("Model", selection: $selectedGroup) {
+                    // Algorithm Dropdown with Categorized Domains
+                    Picker("Algorithm", selection: $selectedGroup) {
                         Section("Anime & Art") {
                             Text("Real-CUGAN (Anime)").tag(ModelGroup.realCUGANAnime)
                             Text("Real-ESRGAN (Anime)").tag(ModelGroup.realESRGANAnime)
@@ -47,29 +47,70 @@ public struct ModelSelectionView: View {
 
                         Section("Photo & Universal") {
                             Text("SRMD (Photo & Universal)").tag(ModelGroup.srmdPhoto)
+                            Text("BSRGAN (Photo & Degraded)").tag(ModelGroup.bsrganPhoto)
+                            Text("Real-ESRNet (Photo & Natural)").tag(ModelGroup.realESRNetPhoto)
                             Text("Real-ESRGAN (Universal)").tag(ModelGroup.realESRGANUniversal)
                             Text("Waifu2x (Photo)").tag(ModelGroup.waifu2xPhoto)
                         }
                     }
                     .onChange(of: selectedGroup) { _, newGroup in
-                        if !newGroup.supportedScales.contains(selectedScale) {
-                            selectedScale = newGroup.supportedScales.first ?? 2
+                        if !newGroup.availableVariantNames.contains(selectedVariantName) {
+                            selectedVariantName = newGroup.availableVariantNames.first ?? ""
                         }
                         syncSelectedModel()
                     }
 
-                    // Scale Dropdown (Restricted to selected model's capabilities)
-                    Picker("Scale Factor", selection: $selectedScale) {
-                        ForEach(selectedGroup.supportedScales, id: \.self) { scale in
-                            Text("\(scale)x").tag(scale)
+                    // Model Dropdown (Specific scale/variant for the chosen algorithm)
+                    Picker("Model", selection: $selectedVariantName) {
+                        ForEach(selectedGroup.availableVariantNames, id: \.self) { variant in
+                            Text(variant).tag(variant)
                         }
                     }
-                    .onChange(of: selectedScale) { _, _ in
+                    .onChange(of: selectedVariantName) { _, _ in
                         syncSelectedModel()
                     }
 
-                    // Noise Reduction (if model supports it)
-                    if selectedGroup.supportsNoiseReduction {
+                    // SRMD Denoising Level (0 to 10 for standard SRMD)
+                    if selectedGroup == .srmdPhoto && !currentModelSpec.isSRMDNF {
+                        Picker("Denoising Level", selection: $selectedNoiseLevel) {
+                            Text("0 (Clean / Sharp)").tag(0)
+                            Text("1 (Subtle)").tag(1)
+                            Text("2").tag(2)
+                            Text("3").tag(3)
+                            Text("4").tag(4)
+                            Text("5 (Moderate)").tag(5)
+                            Text("6").tag(6)
+                            Text("7").tag(7)
+                            Text("8").tag(8)
+                            Text("9").tag(9)
+                            Text("10 (Strong)").tag(10)
+                        }
+                        .onChange(of: selectedNoiseLevel) { _, _ in
+                            syncSelectedModel()
+                        }
+                    }
+
+                    // Real-CUGAN Quality & SyncGap
+                    if selectedGroup == .realCUGANAnime {
+                        Picker("Denoising Level", selection: $selectedNoiseLevel) {
+                            Text("No Denoise (0)").tag(0)
+                            Text("Low (1)").tag(1)
+                            Text("Medium (2)").tag(2)
+                            Text("High (3)").tag(3)
+                        }
+                        .onChange(of: selectedNoiseLevel) { _, _ in
+                            syncSelectedModel()
+                        }
+
+                        Picker("SyncGap (Seam Sync)", selection: $state.syncGapMode) {
+                            ForEach(SyncGapMode.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                    }
+
+                    // Waifu2x Noise Reduction
+                    if selectedGroup == .waifu2xAnime || selectedGroup == .waifu2xPhoto {
                         Picker("Noise Reduction", selection: $selectedNoiseLevel) {
                             Text("None (0)").tag(0)
                             Text("Low (1)").tag(1)
@@ -174,8 +215,8 @@ public struct ModelSelectionView: View {
                 if let img = state.inputImage {
                     let inW = Int(img.size.width)
                     let inH = Int(img.size.height)
-                    let outW = inW * selectedScale
-                    let outH = inH * selectedScale
+                    let outW = inW * currentModelSpec.scale
+                    let outH = inH * currentModelSpec.scale
 
                     Section {
                         HStack {
@@ -189,7 +230,7 @@ public struct ModelSelectionView: View {
                     }
                 }
             }
-            .navigationTitle("Model & Options")
+            .navigationTitle("Algorithm & Model")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -214,3 +255,4 @@ public struct ModelSelectionView: View {
         state.selectedModel = currentModelSpec
     }
 }
+

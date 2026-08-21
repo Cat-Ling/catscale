@@ -75,6 +75,9 @@ public final class AppState {
     public var loggingEnabled: Bool {
         didSet { UserDefaults.standard.set(loggingEnabled, forKey: "loggingEnabled") }
     }
+    public var syncGapMode: SyncGapMode {
+        didSet { UserDefaults.standard.set(syncGapMode.rawValue, forKey: "syncGapMode") }
+    }
 
     // MARK: - Engine Actor
     private var engine: UpscalerEngine
@@ -95,6 +98,13 @@ public final class AppState {
             self.exportFormat = format
         } else {
             self.exportFormat = .png
+        }
+
+        if let savedSyncGap = UserDefaults.standard.string(forKey: "syncGapMode"),
+           let mode = SyncGapMode(rawValue: savedSyncGap) {
+            self.syncGapMode = mode
+        } else {
+            self.syncGapMode = .none
         }
 
         self.autoSaveToLibrary = UserDefaults.standard.bool(forKey: "autoSaveToLibrary")
