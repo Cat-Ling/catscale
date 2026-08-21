@@ -239,7 +239,9 @@ elif command -v xcodebuild &>/dev/null; then
 
   if command -v xcodegen &>/dev/null; then
     echo "⚙️ Generating Xcode project via XcodeGen..."
+    cp "$SCRIPT_DIR/Catscale-Info.plist" /tmp/Catscale-Info.plist.bak 2>/dev/null || true
     xcodegen generate
+    cp /tmp/Catscale-Info.plist.bak "$SCRIPT_DIR/Catscale-Info.plist" 2>/dev/null || true
   fi
 
   if [ -f "Catscale.xcodeproj/project.pbxproj" ]; then
