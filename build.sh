@@ -147,12 +147,12 @@ if command -v xtool &>/dev/null; then
 elif command -v swift &>/dev/null; then
   echo "🔧 Building via SwiftPM & Apple Toolchain..."
 
-  SWIFT_FLAGS=("-c" "release" "--triple" "arm64-apple-ios18.0")
+  SWIFT_FLAGS=("-c" "release" "--triple" "arm64-apple-ios26.0")
   if command -v xcrun &>/dev/null; then
     IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || true)
     if [ -n "$IOS_SDK" ] && [ -d "$IOS_SDK" ]; then
       echo "📱 Detected iOS SDK: $IOS_SDK"
-      SWIFT_FLAGS+=("-Xswiftc" "-sdk" "-Xswiftc" "$IOS_SDK" "-Xswiftc" "-target" "-Xswiftc" "arm64-apple-ios18.0")
+      SWIFT_FLAGS+=("-Xswiftc" "-sdk" "-Xswiftc" "$IOS_SDK" "-Xswiftc" "-target" "-Xswiftc" "arm64-apple-ios26.0")
     fi
   fi
 

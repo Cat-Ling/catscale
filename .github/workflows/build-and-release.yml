@@ -102,12 +102,12 @@ jobs:
     name: Build Unsigned IPA via Darwin Toolchain
     needs: check-and-prepare
     if: needs.check-and-prepare.outputs.should_build == 'true'
-    runs-on: macos-15
-    timeout-minutes: 60
+    runs-on: macos-26
+    timeout-minutes: 120
     env:
       NSUnbufferedIO: "YES"
       GIT_TERMINAL_PROMPT: "0"
-      XCODE_VERSION: "16.1"
+      XCODE_VERSION: "26.6"
     steps:
       - name: Checkout Catscale
         uses: actions/checkout@v4
