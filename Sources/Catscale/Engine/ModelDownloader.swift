@@ -144,6 +144,35 @@ public final class ModelDownloader {
         }
     }
 
+    /// Delete a specific downloaded model from local storage
+    public func deleteModel(_ model: ModelSpec) {
+        guard !model.isBundled else { return }
+        cancelDownload(for: model)
+
+        let fileManager = FileManager.default
+        let searchDirectories = [
+            fileManager.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Models"),
+            fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("Models"),
+            fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Models")
+        ].compactMap { $0 }
+
+        let baseName = model.compiledModelName.lowercased()
+        let normalizedBase = baseName.replacingOccurrences(of: "-", with: "_")
+
+        for dir in searchDirectories {
+            guard let contents = try? fileManager.contentsOfDirectory(atPath: dir.path) else { continue }
+            for item in contents {
+                let lower = item.lowercased()
+                if lower.contains(baseName) || lower.contains(normalizedBase) {
+                    let itemURL = dir.appendingPathComponent(item)
+                    try? fileManager.removeItem(at: itemURL)
+                }
+            }
+        }
+
+        refreshInstalledModels()
+    }
+
     /// Delete all locally downloaded models to free storage space
     public func deleteAllDownloadedModels() {
         cancelDownloadAll()

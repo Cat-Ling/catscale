@@ -4,6 +4,7 @@ import CoreML
 public struct SettingsView: View {
     @Bindable var state: AppState
     @State private var showLogsSheet: Bool = false
+    @State private var showManageModelsSheet: Bool = false
     @State private var showDeleteModelsAlert: Bool = false
     @State private var logger = AppLogger.shared
     private var downloader = ModelDownloader.shared
@@ -21,19 +22,20 @@ public struct SettingsView: View {
                     let installed = downloadable.filter { downloader.isModelInstalled($0) }
                     let installedMB = installed.reduce(0.0) { $0 + $1.uncompressedSizeMB }
 
-                    HStack {
-                        Text("Installed Models")
-                        Spacer()
-                        Text("\(installed.count) / \(downloadable.count)")
-                            .foregroundStyle(.secondary)
+                    Button {
+                        showManageModelsSheet = true
+                    } label: {
+                        HStack {
+                            Text("Manage Models")
+                            Spacer()
+                            Text("\(installed.count) installed • \(String(format: "%.1f MB", installedMB))")
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.tertiary)
+                        }
                     }
-
-                    HStack {
-                        Text("Disk Usage")
-                        Spacer()
-                        Text(String(format: "%.1f MB", installedMB))
-                            .foregroundStyle(.secondary)
-                    }
+                    .foregroundStyle(.primary)
 
                     if downloader.isDownloadingAll {
                         VStack(alignment: .leading, spacing: 8) {
@@ -79,7 +81,7 @@ public struct SettingsView: View {
                     }
 
                     if !installed.isEmpty && !downloader.isDownloadingAll {
-                        Button("Delete Downloaded Models", role: .destructive) {
+                        Button("Delete All Models", role: .destructive) {
                             showDeleteModelsAlert = true
                         }
                     }
@@ -128,6 +130,9 @@ public struct SettingsView: View {
             .navigationTitle("Settings")
             .sheet(isPresented: $showLogsSheet) {
                 SessionLogsView()
+            }
+            .sheet(isPresented: $showManageModelsSheet) {
+                ManageModelsView()
             }
             .alert("Delete Downloaded Models?", isPresented: $showDeleteModelsAlert) {
                 Button("Delete All", role: .destructive) {
